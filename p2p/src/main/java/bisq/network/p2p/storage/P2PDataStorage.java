@@ -107,6 +107,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Nullable;
 
+import static bisq.common.util.RunBashCommand.printSystemLoad;
+
 @Slf4j
 public class P2PDataStorage implements MessageListener, ConnectionListener, PersistedDataHost {
     /**
@@ -324,6 +326,7 @@ public class P2PDataStorage implements MessageListener, ConnectionListener, Pers
      * or domain listeners.
      */
     public void processGetDataResponse(GetDataResponse getDataResponse, NodeAddress sender) {
+        printSystemLoad(log, new Exception("processGetDataResponse ... enter"));
         final Set<ProtectedStorageEntry> dataSet = getDataResponse.getDataSet();
         Set<PersistableNetworkPayload> persistableNetworkPayloadSet = getDataResponse.getPersistableNetworkPayloadSet();
 
@@ -361,6 +364,7 @@ public class P2PDataStorage implements MessageListener, ConnectionListener, Pers
         // issues and since the data is rarely out of sync it is not worth it to apply them from multiple peers during
         // startup.
         initialRequestApplied = true;
+        printSystemLoad(log, new Exception("processGetDataResponse ... exit"));
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////
