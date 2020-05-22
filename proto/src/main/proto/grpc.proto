@@ -18,26 +18,27 @@
 syntax = "proto3";
 package io.bisq.protobuffer;
 
+import "google/api/annotations.proto";
 import "pb.proto";
 
 option java_package = "bisq.proto.grpc";
 option java_multiple_files = true;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-// BisqService
+// MessageService
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-service BisqService {
-    rpc Call (BisqRequest) returns (BisqReply) {
+service MessageService {
+    rpc Call (Command) returns (Result) {
     }
 }
 
-message BisqRequest {
-    string uri = 1;
+message Command {
+    string params = 1;
 }
 
-message BisqReply {
-    string response = 1;
+message Result {
+    string data = 1;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////

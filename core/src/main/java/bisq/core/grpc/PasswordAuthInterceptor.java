@@ -20,6 +20,7 @@ import static java.lang.String.format;
 class PasswordAuthInterceptor implements ServerInterceptor {
 
     public static final String PASSWORD_KEY = "password";
+    public static final String HTTP_GATEWAY_AUTH_KEY = "grpcgateway-authorization";
 
     private final String expectedPasswordValue;
 
@@ -30,7 +31,10 @@ class PasswordAuthInterceptor implements ServerInterceptor {
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> serverCall, Metadata headers,
                                                                  ServerCallHandler<ReqT, RespT> serverCallHandler) {
-        var actualPasswordValue = headers.get(Key.of(PASSWORD_KEY, ASCII_STRING_MARSHALLER));
+        var gatewayAuthKey = Key.of(HTTP_GATEWAY_AUTH_KEY, ASCII_STRING_MARSHALLER);
+        var actualPasswordValue = headers.containsKey(gatewayAuthKey)
+                ? headers.get(gatewayAuthKey)
+                : headers.get(Key.of(PASSWORD_KEY, ASCII_STRING_MARSHALLER));
 
         if (actualPasswordValue == null)
             throw new StatusRuntimeException(UNAUTHENTICATED.withDescription(
