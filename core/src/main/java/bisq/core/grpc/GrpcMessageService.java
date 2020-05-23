@@ -4,11 +4,14 @@ import bisq.proto.grpc.Command;
 import bisq.proto.grpc.MessageServiceGrpc;
 import bisq.proto.grpc.Result;
 
+import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
 import javax.inject.Inject;
+
+import static bisq.core.grpc.PasswordAuthInterceptor.HTTP1_REQUEST_CTX_KEY;
 
 class GrpcMessageService extends MessageServiceGrpc.MessageServiceImplBase {
 
@@ -22,7 +25,8 @@ class GrpcMessageService extends MessageServiceGrpc.MessageServiceImplBase {
     @Override
     public void call(Command req, StreamObserver<Result> responseObserver) {
         try {
-            String response = messageService.call(req.getParams());
+            boolean isGatewayRequest = HTTP1_REQUEST_CTX_KEY.get(Context.current());
+            String response = messageService.call(req.getParams(), isGatewayRequest);
             var reply = Result.newBuilder().setData(response).build();
             responseObserver.onNext(reply);
             responseObserver.onCompleted();

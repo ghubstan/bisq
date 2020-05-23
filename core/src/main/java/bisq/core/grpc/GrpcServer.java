@@ -60,10 +60,13 @@ public class GrpcServer {
     private final Server server;
 
     @Inject
-    public GrpcServer(Config config, CoreApi coreApi, GrpcMessageService bisqService, GrpcWalletService walletService) {
+    public GrpcServer(Config config,
+                      CoreApi coreApi,
+                      GrpcMessageService messageService,
+                      GrpcWalletService walletService) {
         this.coreApi = coreApi;
         this.server = ServerBuilder.forPort(config.apiPort)
-                .addService(bisqService)
+                .addService(messageService)
                 .addService(new GetVersionService())
                 .addService(new GetTradeStatisticsService())
                 .addService(new GetOffersService())
