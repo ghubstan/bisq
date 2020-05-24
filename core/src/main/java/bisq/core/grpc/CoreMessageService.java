@@ -22,7 +22,6 @@ import static java.lang.String.format;
 class CoreMessageService {
 
     private final CoreApi coreApi;
-    private final CoreWalletService walletService;
 
     private final Gson gson = new GsonBuilder().create();
 
@@ -31,9 +30,8 @@ class CoreMessageService {
     private final Pattern paramsPattern = Pattern.compile("([^\"]\\S*|\".+?\")\\s*");
 
     @Inject
-    public CoreMessageService(CoreApi coreApi, CoreWalletService walletService) {
+    public CoreMessageService(CoreApi coreApi) {
         this.coreApi = coreApi;
-        this.walletService = walletService; // TODO inject into coreApi instead of this
     }
 
     public String call(String params, boolean isGatewayRequest) {
@@ -72,12 +70,12 @@ class CoreMessageService {
                 case getbalance: {
                     if (isGatewayRequest)
                         try {
-                            return toJson(String.valueOf(walletService.getAvailableBalance()));
+                            return toJson(String.valueOf(coreApi.getBalance()));
                         } catch (IllegalStateException e) {
                             return toJson(e.getMessage());
                         }
                     else
-                        return String.valueOf(walletService.getAvailableBalance());
+                        return String.valueOf(coreApi.getBalance());
                 }
                 case setwalletpassword: {
                     if (paramTokens.size() < 2) {

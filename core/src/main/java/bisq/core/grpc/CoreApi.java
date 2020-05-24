@@ -77,6 +77,11 @@ public class CoreApi {
         return helpService.getHelp();
     }
 
+    public String getBalance() {
+        long balance = walletService.getAvailableBalance();
+        return String.valueOf(balance);
+    }
+
     public String getVersion() {
         return Version.VERSION;
     }
