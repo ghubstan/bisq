@@ -5,14 +5,14 @@ import io.grpc.StatusRuntimeException;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import joptsimple.OptionParser;
-import joptsimple.OptionSet;
-
 import javax.inject.Inject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,6 +35,10 @@ class CoreMessageService {
 
     private final Gson gson = new GsonBuilder().create();
 
+    // Used by a regex matcher to split command tokens by space, excepting those
+    // enclosed in dbl quotes.
+    private final Pattern paramsPattern = Pattern.compile("([^\"]\\S*|\".+?\")\\s*");
+
     @Inject
     public CoreMessageService(CoreApi coreApi, CoreWalletService walletService) {
         this.coreApi = coreApi;
@@ -51,10 +55,8 @@ class CoreMessageService {
                 throw new IllegalArgumentException("no method specified");
         }
 
-        var parser = new OptionParser();
-        OptionSet options = parser.parse(params);
-        @SuppressWarnings("unchecked") var nonOptionArgs = (List<String>) options.nonOptionArguments();
-        var methodName = nonOptionArgs.get(0);
+        var paramTokens = getParamTokens(params);
+        var methodName = paramTokens.get(0);
         final Method method;
         try {
             method = Method.valueOf(methodName);
@@ -81,16 +83,16 @@ class CoreMessageService {
                         return String.valueOf(walletService.getAvailableBalance());
                 }
                 case setwalletpassword: {
-                    if (nonOptionArgs.size() < 2) {
+                    if (paramTokens.size() < 2) {
                         if (isGatewayRequest)
                             return toJson("no password specified");
                         else
                             throw new IllegalArgumentException("no password specified");
                     }
-                    var hasNewPassword = nonOptionArgs.size() == 3;
+                    var hasNewPassword = paramTokens.size() == 3;
                     var newPassword = "";
                     if (hasNewPassword)
-                        newPassword = nonOptionArgs.get(2);
+                        newPassword = paramTokens.get(2);
                     if (isGatewayRequest)
                         try {
                             return toJson("wallet encrypted" + (hasNewPassword ? " with new password" : ""));
@@ -113,28 +115,20 @@ class CoreMessageService {
             String message = ex.getMessage().replaceFirst("^[A-Z_]+: ", "");
             throw new RuntimeException(message, ex);
         }
+    }
 
-
-        /*
-        if (methodName.equals("getversion")) {
-            if (isGatewayRequest)
-                return toJson(coreApi.getVersion());
-            else
-                return coreApi.getVersion();
+    private List<String> getParamTokens(String params) {
+        List<String> paramTokens = new ArrayList<>();
+        Matcher m = paramsPattern.matcher(params);
+        while (m.find()) {
+            String rawToken = m.group(1);
+            // We only want to strip leading and trailing dbl quotes from the token,
+            // and allow passwords to contain quotes.
+            if (rawToken.length() >= 2 && rawToken.charAt(0) == '"' && rawToken.charAt(rawToken.length() - 1) == '"')
+                rawToken = rawToken.substring(1, rawToken.length() - 1);
+            paramTokens.add(rawToken);
         }
-
-        if (methodName.equals("getbalance")) {
-            if (isGatewayRequest)
-                try {
-                    return toJson(String.valueOf(walletService.getAvailableBalance()));
-                } catch (IllegalStateException e) {
-                    return toJson(e.getMessage());
-                }
-            else
-                return String.valueOf(walletService.getAvailableBalance());
-        }
-        return "echoed command params " + params;
-         */
+        return paramTokens;
     }
 
     private String toJson(String data) {
