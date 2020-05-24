@@ -53,17 +53,21 @@ public class CoreApi {
     private final OpenOfferManager openOfferManager;
     private final User user;
 
+    private final CoreWalletService walletService;
+
     @Inject
     public CoreApi(OfferBookService offerBookService,
                    TradeStatisticsManager tradeStatisticsManager,
                    CreateOfferService createOfferService,
                    OpenOfferManager openOfferManager,
-                   User user) {
+                   User user,
+                   CoreWalletService walletService) {
         this.offerBookService = offerBookService;
         this.tradeStatisticsManager = tradeStatisticsManager;
         this.createOfferService = createOfferService;
         this.openOfferManager = openOfferManager;
         this.user = user;
+        this.walletService = walletService;
     }
 
     public String getVersion() {
