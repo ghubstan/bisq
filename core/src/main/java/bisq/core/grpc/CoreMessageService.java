@@ -54,6 +54,19 @@ class CoreMessageService {
         }
 
         try {
+            // If wallet or balance is unavailable, you can't do anything.
+            coreApi.getBalance();
+        } catch (IllegalStateException ex) {
+            if (ex.getMessage().equals("wallet is not yet available")
+                    || ex.getMessage().equals("balance is not yet available")) {
+                if (isGatewayRequest)
+                    return toJson("server not ready for requests");
+                else
+                    throw new IllegalStateException("server not ready for requests");
+            }
+        }
+
+        try {
             switch (method) {
                 case help: {
                     if (isGatewayRequest)
