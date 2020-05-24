@@ -50,7 +50,10 @@ class CoreMessageService {
         try {
             method = Method.valueOf(methodName);
         } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException(format("'%s' is not a supported method", methodName));
+            if (isGatewayRequest)
+                return toJson(format("'%s' is not a supported method", methodName));
+            else
+                throw new IllegalArgumentException(format("'%s' is not a supported method", methodName));
         }
 
         try {
