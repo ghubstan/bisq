@@ -73,8 +73,8 @@ public class CoreApi {
         this.walletService = walletService;
     }
 
-    public String getHelp() {
-        return helpService.getHelp();
+    public String getHelp(Method method) {
+        return method == null ? helpService.getHelp() : helpService.getHelp(method);
     }
 
     public String getBalance() {

@@ -23,7 +23,7 @@ class CoreHelpService {
     public String getHelp() {
         return this.help;
     }
-    
+
     public String getHelp(Method method) {
         // TODO return detailed help for method
         return this.help;

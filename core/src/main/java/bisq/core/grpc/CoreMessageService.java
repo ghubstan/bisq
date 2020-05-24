@@ -38,10 +38,9 @@ class CoreMessageService {
         log.info("RPC request: '{}'", params);
 
         if (params.isEmpty()) {
-            if (isGatewayRequest)
-                return toJson("no method specified");
-            else
-                throw new IllegalArgumentException("no method specified");
+            return handleException(
+                    new IllegalArgumentException("no method specified"),
+                    isGatewayRequest);
         }
 
         var paramTokens = getParamTokens(params);
@@ -50,75 +49,72 @@ class CoreMessageService {
         try {
             method = Method.valueOf(methodName);
         } catch (IllegalArgumentException ex) {
-            if (isGatewayRequest)
-                return toJson(format("'%s' is not a supported method", methodName));
-            else
-                throw new IllegalArgumentException(format("'%s' is not a supported method", methodName));
+            return handleException(
+                    new IllegalArgumentException(format("'%s' is not a supported method", methodName), ex),
+                    isGatewayRequest);
         }
 
         try {
-            // If wallet or balance is unavailable, you can't do anything.
-            coreApi.getBalance();
+            coreApi.getBalance();  // If the wallet or balance is unavailable, you can't do anything.
         } catch (IllegalStateException ex) {
-            if (ex.getMessage().equals("wallet is not yet available")
-                    || ex.getMessage().equals("balance is not yet available")) {
-                if (isGatewayRequest)
-                    return toJson("server not ready for requests");
-                else
-                    throw new IllegalStateException("server not ready for requests");
+            String reason = ex.getMessage();
+            if (reason.equals("wallet is not yet available") || reason.equals("balance is not yet available")) {
+                return handleException(new IllegalStateException("server not ready for requests", ex), isGatewayRequest);
             }
         }
 
         try {
             switch (method) {
                 case help: {
-                    if (isGatewayRequest)
-                        return toJson(coreApi.getHelp());
-                    else
-                        return coreApi.getHelp();
+                    String cmd = (paramTokens.size() > 1) ? paramTokens.get(1) : null;
+                    if (cmd != null) {
+                        try {
+                            return formatResponse(coreApi.getHelp(Method.valueOf(cmd)), isGatewayRequest);
+                        } catch (IllegalArgumentException ex) {
+                            return handleException(
+                                    new IllegalArgumentException(
+                                            format("'%s\n\n%s' is not a supported method", cmd, coreApi.getHelp(null)),
+                                            ex),
+                                    isGatewayRequest);
+                        }
+                    } else {
+                        return formatResponse(coreApi.getHelp(null), isGatewayRequest);
+                    }
                 }
                 case getversion: {
-                    if (isGatewayRequest)
-                        return toJson(coreApi.getVersion());
-                    else
-                        return coreApi.getVersion();
+                    return formatResponse(coreApi.getVersion(), isGatewayRequest);
                 }
                 case getbalance: {
-                    if (isGatewayRequest)
-                        try {
-                            return toJson(String.valueOf(coreApi.getBalance()));
-                        } catch (IllegalStateException e) {
-                            return toJson(e.getMessage());
-                        }
-                    else
-                        return String.valueOf(coreApi.getBalance());
+                    try {
+                        return formatResponse(coreApi.getBalance(), isGatewayRequest);
+                    } catch (IllegalStateException ex) {
+                        return handleException(ex, isGatewayRequest);
+                    }
                 }
                 case setwalletpassword: {
-                    if (paramTokens.size() < 2) {
-                        if (isGatewayRequest)
-                            return toJson("no password specified");
-                        else
-                            throw new IllegalArgumentException("no password specified");
-                    }
+                    if (paramTokens.size() < 2)
+                        return handleException(
+                                new IllegalArgumentException("no password specified"),
+                                isGatewayRequest);
+
                     var hasNewPassword = paramTokens.size() == 3;
                     var newPassword = "";
                     if (hasNewPassword)
                         newPassword = paramTokens.get(2);
-                    if (isGatewayRequest)
-                        try {
-                            return toJson("wallet encrypted" + (hasNewPassword ? " with new password" : ""));
-                        } catch (IllegalStateException e) {
-                            return toJson(e.getMessage());
-                        }
-                    else
-                        return "wallet encrypted" + (hasNewPassword ? " with new password" : "");
+
+                    try {
+                        // walletService.setPwd(...)
+                        return formatResponse("wallet encrypted"
+                                        + (hasNewPassword ? " with new password" : ""),
+                                isGatewayRequest);
+                    } catch (IllegalStateException ex) {
+                        return handleException(ex, isGatewayRequest);
+                    }
                 }
                 default: {
-                    if (isGatewayRequest)
-                        return toJson(format("unhandled method '%s'", method));
-                    else
-                        throw new RuntimeException(format("unhandled method '%s'", method));
-
+                    return handleException(
+                            new RuntimeException(format("unhandled method '%s'", method)),
+                            isGatewayRequest);
                 }
             }
         } catch (StatusRuntimeException ex) {
@@ -142,11 +138,21 @@ class CoreMessageService {
         return paramTokens;
     }
 
+    private String formatResponse(String data, boolean isGatewayRequest) {
+        return isGatewayRequest ? toJson(data) : data;
+    }
+
+    private String handleException(RuntimeException ex, boolean isGatewayRequest) {
+        if (isGatewayRequest)
+            return toJson(ex.getMessage());
+        else
+            throw ex;
+    }
+
     private String toJson(String data) {
         Map<String, String> map = new HashMap<>() {{
             put("data", data);
         }};
         return gson.toJson(map, Map.class);
     }
-
 }
