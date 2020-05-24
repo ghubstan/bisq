@@ -53,6 +53,7 @@ public class CoreApi {
     private final OpenOfferManager openOfferManager;
     private final User user;
 
+    private final CoreHelpService helpService;
     private final CoreWalletService walletService;
 
     @Inject
@@ -61,13 +62,19 @@ public class CoreApi {
                    CreateOfferService createOfferService,
                    OpenOfferManager openOfferManager,
                    User user,
+                   CoreHelpService helpService,
                    CoreWalletService walletService) {
         this.offerBookService = offerBookService;
         this.tradeStatisticsManager = tradeStatisticsManager;
         this.createOfferService = createOfferService;
         this.openOfferManager = openOfferManager;
         this.user = user;
+        this.helpService = helpService;
         this.walletService = walletService;
+    }
+
+    public String getHelp() {
+        return helpService.getHelp();
     }
 
     public String getVersion() {

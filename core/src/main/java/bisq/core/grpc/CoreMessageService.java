@@ -22,6 +22,7 @@ import static java.lang.String.format;
 class CoreMessageService {
 
     private enum Method {
+        help,
         getversion,
         getbalance,
         lockwallet,
@@ -66,6 +67,12 @@ class CoreMessageService {
 
         try {
             switch (method) {
+                case help: {
+                    if (isGatewayRequest)
+                        return toJson(coreApi.getHelp());
+                    else
+                        return coreApi.getHelp();
+                }
                 case getversion: {
                     if (isGatewayRequest)
                         return toJson(coreApi.getVersion());
