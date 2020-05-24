@@ -21,16 +21,6 @@ import static java.lang.String.format;
 @Slf4j
 class CoreMessageService {
 
-    private enum Method {
-        help,
-        getversion,
-        getbalance,
-        lockwallet,
-        unlockwallet,
-        removewalletpassword,
-        setwalletpassword
-    }
-
     private final CoreApi coreApi;
     private final CoreWalletService walletService;
 
