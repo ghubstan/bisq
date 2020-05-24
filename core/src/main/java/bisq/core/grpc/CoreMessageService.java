@@ -1,11 +1,16 @@
 package bisq.core.grpc;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
 import javax.inject.Inject;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,6 +19,8 @@ class CoreMessageService {
 
     private final CoreApi coreApi;
     private final CoreWalletService walletService;
+
+    private Gson gson = new GsonBuilder().create();
 
     @Inject
     public CoreMessageService(CoreApi coreApi, CoreWalletService walletService) {
@@ -60,9 +67,11 @@ class CoreMessageService {
         return "echoed command params " + params;
     }
 
-
     private String toJson(String data) {
-        return "{\"data\": \"" + data + "\"}";
+        Map<String, String> map = new HashMap<>() {{
+            put("data", data);
+        }};
+        return gson.toJson(map, Map.class);
     }
 
 }
