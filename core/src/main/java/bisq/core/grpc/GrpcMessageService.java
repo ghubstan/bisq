@@ -15,18 +15,18 @@ import static bisq.core.grpc.PasswordAuthInterceptor.HTTP1_REQUEST_CTX_KEY;
 
 class GrpcMessageService extends MessageServiceGrpc.MessageServiceImplBase {
 
-    private final CoreMessageService messageService;
+    private final GrpcCoreBridge bridge;
 
     @Inject
-    public GrpcMessageService(CoreMessageService messageService) {
-        this.messageService = messageService;
+    public GrpcMessageService(GrpcCoreBridge bridge) {
+        this.bridge = bridge;
     }
 
     @Override
     public void call(Command req, StreamObserver<Result> responseObserver) {
         try {
             boolean isGatewayRequest = HTTP1_REQUEST_CTX_KEY.get(Context.current());
-            String response = messageService.call(req.getParams(), isGatewayRequest);
+            String response = bridge.call(req.getParams(), isGatewayRequest);
             var reply = Result.newBuilder().setData(response).build();
             responseObserver.onNext(reply);
             responseObserver.onCompleted();
