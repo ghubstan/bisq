@@ -85,6 +85,22 @@ public class CoreApi {
         return Version.VERSION;
     }
 
+    public void setWalletPassword(String password, String newPassword) {
+        walletService.setWalletPassword(password, newPassword);
+    }
+
+    public void removeWalletPassword(String password) {
+        walletService.removeWalletPassword(password);
+    }
+
+    public void unlockWallet(String password, long timeout) {
+        walletService.unlockWallet(password, timeout);
+    }
+
+    public void lockWallet() {
+        walletService.lockWallet();
+    }
+
     public List<TradeStatistics2> getTradeStatistics() {
         return new ArrayList<>(tradeStatisticsManager.getObservableTradeStatisticsSet());
     }

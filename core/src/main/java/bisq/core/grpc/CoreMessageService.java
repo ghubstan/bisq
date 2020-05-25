@@ -100,22 +100,70 @@ class CoreMessageService {
                         return handleException(ex, isGatewayRequest);
                     }
                 }
+                case lockwallet: {
+                    try {
+                        coreApi.lockWallet();
+                        return formatResponse("wallet locked", isGatewayRequest);
+                    } catch (IllegalStateException ex) {
+                        return handleException(ex, isGatewayRequest);
+                    }
+                }
+                case unlockwallet: {
+                    if (paramTokens.size() < 2)
+                        return handleException(
+                                new IllegalArgumentException("no password specified"),
+                                isGatewayRequest);
+
+                    var password = paramTokens.get(1);
+
+                    if (paramTokens.size() < 3)
+                        return handleException(
+                                new IllegalArgumentException("no unlock timeout specified"),
+                                isGatewayRequest);
+
+                    long timeout;
+                    try {
+                        timeout = Long.parseLong(paramTokens.get(2));
+                    } catch (NumberFormatException ex) {
+                        return handleException(
+                                new IllegalArgumentException(format("'%s' is not a number", paramTokens.get(2)), ex),
+                                isGatewayRequest);
+                    }
+
+                    try {
+                        coreApi.unlockWallet(password, timeout);
+                        return formatResponse("wallet unlocked", isGatewayRequest);
+                    } catch (IllegalStateException ex) {
+                        return handleException(ex, isGatewayRequest);
+                    }
+                }
                 case setwalletpassword: {
                     if (paramTokens.size() < 2)
                         return handleException(
                                 new IllegalArgumentException("no password specified"),
                                 isGatewayRequest);
 
-                    var hasNewPassword = paramTokens.size() == 3;
-                    var newPassword = "";
-                    if (hasNewPassword)
-                        newPassword = paramTokens.get(2);
-
+                    var password = paramTokens.get(1);
+                    var newPassword = paramTokens.size() == 3 ? paramTokens.get(2).trim() : "";
                     try {
-                        // walletService.setPwd(...)
+                        coreApi.setWalletPassword(password, newPassword);
                         return formatResponse("wallet encrypted"
-                                        + (hasNewPassword ? " with new password" : ""),
+                                        + (!newPassword.isEmpty() ? " with new password" : ""),
                                 isGatewayRequest);
+                    } catch (IllegalStateException ex) {
+                        return handleException(ex, isGatewayRequest);
+                    }
+                }
+                case removewalletpassword: {
+                    if (paramTokens.size() < 2)
+                        return handleException(
+                                new IllegalArgumentException("no password specified"),
+                                isGatewayRequest);
+
+                    var password = paramTokens.get(1);
+                    try {
+                        coreApi.removeWalletPassword(password);
+                        return formatResponse("wallet decrypted", isGatewayRequest);
                     } catch (IllegalStateException ex) {
                         return handleException(ex, isGatewayRequest);
                     }
