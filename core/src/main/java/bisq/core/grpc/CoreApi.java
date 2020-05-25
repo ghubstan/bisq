@@ -77,9 +77,8 @@ public class CoreApi {
         return method == null ? helpService.getHelp() : helpService.getHelp(method);
     }
 
-    public String getBalance() {
-        long balance = walletService.getAvailableBalance();
-        return String.valueOf(balance);
+    public long getBalance() {
+        return walletService.getAvailableBalance();
     }
 
     public String getVersion() {

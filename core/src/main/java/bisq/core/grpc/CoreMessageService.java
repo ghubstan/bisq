@@ -7,6 +7,10 @@ import com.google.gson.GsonBuilder;
 
 import javax.inject.Inject;
 
+import java.text.DecimalFormat;
+
+import java.math.BigDecimal;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -86,7 +90,12 @@ class CoreMessageService {
                 }
                 case getbalance: {
                     try {
-                        return formatResponse(coreApi.getBalance(), isGatewayRequest);
+                        var satoshiBalance = coreApi.getBalance();
+                        var satoshiDivisor = new BigDecimal(100000000);
+                        var btcFormat = new DecimalFormat("###,##0.00000000");
+                        @SuppressWarnings("BigDecimalMethodWithoutRoundingCalled")
+                        var btcBalance = btcFormat.format(BigDecimal.valueOf(satoshiBalance).divide(satoshiDivisor));
+                        return formatResponse(btcBalance, isGatewayRequest);
                     } catch (IllegalStateException ex) {
                         return handleException(ex, isGatewayRequest);
                     }
