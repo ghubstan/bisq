@@ -1,5 +1,6 @@
 package bisq.core.grpc;
 
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
 import com.google.gson.Gson;
@@ -42,9 +43,8 @@ class CoreMessageService {
         log.info("RPC request: '{}'", params);
 
         if (params.isEmpty()) {
-            return handleException(
-                    new IllegalArgumentException("no method specified"),
-                    isGatewayRequest);
+            throw new StatusRuntimeException(
+                    Status.INVALID_ARGUMENT.withDescription("no method specified"));
         }
 
         var paramTokens = getParamTokens(params);
@@ -53,9 +53,9 @@ class CoreMessageService {
         try {
             method = Method.valueOf(methodName);
         } catch (IllegalArgumentException ex) {
-            return handleException(
-                    new IllegalArgumentException(format("'%s' is not a supported method", methodName), ex),
-                    isGatewayRequest);
+            throw new StatusRuntimeException(
+                    Status.INVALID_ARGUMENT.withDescription(
+                            format("'%s' is not a supported method", methodName)));
         }
 
         try {
@@ -63,7 +63,8 @@ class CoreMessageService {
         } catch (IllegalStateException ex) {
             String reason = ex.getMessage();
             if (reason.equals("wallet is not yet available") || reason.equals("balance is not yet available")) {
-                return handleException(new IllegalStateException("server not ready for requests", ex), isGatewayRequest);
+                throw new StatusRuntimeException(
+                        Status.UNAVAILABLE.withDescription("server not ready for requests"));
             }
         }
 
@@ -75,11 +76,9 @@ class CoreMessageService {
                         try {
                             return formatResponse(coreApi.getHelp(Method.valueOf(cmd)), isGatewayRequest);
                         } catch (IllegalArgumentException ex) {
-                            return handleException(
-                                    new IllegalArgumentException(
-                                            format("'%s\n\n%s' is not a supported method", cmd, coreApi.getHelp(null)),
-                                            ex),
-                                    isGatewayRequest);
+                            throw new StatusRuntimeException(
+                                    Status.INVALID_ARGUMENT.withDescription(
+                                            format("'%s\n\n%s' is not a supported method", cmd, coreApi.getHelp(null))));
                         }
                     } else {
                         return formatResponse(coreApi.getHelp(null), isGatewayRequest);
@@ -97,7 +96,8 @@ class CoreMessageService {
                         var btcBalance = btcFormat.format(BigDecimal.valueOf(satoshiBalance).divide(satoshiDivisor));
                         return formatResponse(btcBalance, isGatewayRequest);
                     } catch (IllegalStateException ex) {
-                        return handleException(ex, isGatewayRequest);
+                        throw new StatusRuntimeException(
+                                Status.UNKNOWN.withDescription(ex.getMessage()));
                     }
                 }
                 case lockwallet: {
@@ -105,43 +105,42 @@ class CoreMessageService {
                         coreApi.lockWallet();
                         return formatResponse("wallet locked", isGatewayRequest);
                     } catch (IllegalStateException ex) {
-                        return handleException(ex, isGatewayRequest);
+                        throw new StatusRuntimeException(
+                                Status.UNKNOWN.withDescription(ex.getMessage()));
                     }
                 }
                 case unlockwallet: {
                     if (paramTokens.size() < 2)
-                        return handleException(
-                                new IllegalArgumentException("no password specified"),
-                                isGatewayRequest);
+                        throw new StatusRuntimeException(
+                                Status.INVALID_ARGUMENT.withDescription("no password specified"));
 
                     var password = paramTokens.get(1);
 
                     if (paramTokens.size() < 3)
-                        return handleException(
-                                new IllegalArgumentException("no unlock timeout specified"),
-                                isGatewayRequest);
+                        throw new StatusRuntimeException(
+                                Status.INVALID_ARGUMENT.withDescription("no unlock timeout specified"));
 
                     long timeout;
                     try {
                         timeout = Long.parseLong(paramTokens.get(2));
                     } catch (NumberFormatException ex) {
-                        return handleException(
-                                new IllegalArgumentException(format("'%s' is not a number", paramTokens.get(2)), ex),
-                                isGatewayRequest);
+                        throw new StatusRuntimeException(
+                                Status.INVALID_ARGUMENT
+                                        .withDescription(format("'%s' is not a number", paramTokens.get(2))));
                     }
 
                     try {
                         coreApi.unlockWallet(password, timeout);
                         return formatResponse("wallet unlocked", isGatewayRequest);
                     } catch (IllegalStateException ex) {
-                        return handleException(ex, isGatewayRequest);
+                        throw new StatusRuntimeException(
+                                Status.UNKNOWN.withDescription(ex.getMessage()));
                     }
                 }
                 case setwalletpassword: {
                     if (paramTokens.size() < 2)
-                        return handleException(
-                                new IllegalArgumentException("no password specified"),
-                                isGatewayRequest);
+                        throw new StatusRuntimeException(
+                                Status.INVALID_ARGUMENT.withDescription("no password specified"));
 
                     var password = paramTokens.get(1);
                     var newPassword = paramTokens.size() == 3 ? paramTokens.get(2).trim() : "";
@@ -151,27 +150,28 @@ class CoreMessageService {
                                         + (!newPassword.isEmpty() ? " with new password" : ""),
                                 isGatewayRequest);
                     } catch (IllegalStateException ex) {
-                        return handleException(ex, isGatewayRequest);
+                        throw new StatusRuntimeException(
+                                Status.UNKNOWN.withDescription(ex.getMessage()));
                     }
                 }
                 case removewalletpassword: {
                     if (paramTokens.size() < 2)
-                        return handleException(
-                                new IllegalArgumentException("no password specified"),
-                                isGatewayRequest);
+                        throw new StatusRuntimeException(
+                                Status.INVALID_ARGUMENT.withDescription("no password specified"));
 
                     var password = paramTokens.get(1);
                     try {
                         coreApi.removeWalletPassword(password);
                         return formatResponse("wallet decrypted", isGatewayRequest);
                     } catch (IllegalStateException ex) {
-                        return handleException(ex, isGatewayRequest);
+                        throw new StatusRuntimeException(
+                                Status.UNKNOWN.withDescription(ex.getMessage()));
                     }
                 }
                 default: {
-                    return handleException(
-                            new RuntimeException(format("unhandled method '%s'", method)),
-                            isGatewayRequest);
+                    throw new StatusRuntimeException(
+                            Status.INVALID_ARGUMENT.withDescription(
+                                    format("unhandled method '%s'", method)));
                 }
             }
         } catch (StatusRuntimeException ex) {
@@ -197,13 +197,6 @@ class CoreMessageService {
 
     private String formatResponse(String data, boolean isGatewayRequest) {
         return isGatewayRequest ? toJson(data) : data;
-    }
-
-    private String handleException(RuntimeException ex, boolean isGatewayRequest) {
-        if (isGatewayRequest)
-            return toJson(ex.getMessage());
-        else
-            throw ex;
     }
 
     private String toJson(String data) {

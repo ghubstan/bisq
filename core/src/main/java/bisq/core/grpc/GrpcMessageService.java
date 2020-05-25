@@ -30,6 +30,9 @@ class GrpcMessageService extends MessageServiceGrpc.MessageServiceImplBase {
             var reply = Result.newBuilder().setData(response).build();
             responseObserver.onNext(reply);
             responseObserver.onCompleted();
+        } catch (StatusRuntimeException ex) {
+            responseObserver.onError(ex);
+            throw ex;
         } catch (RuntimeException cause) {
             var ex = new StatusRuntimeException(Status.UNKNOWN.withDescription(cause.getMessage()));
             responseObserver.onError(ex);
