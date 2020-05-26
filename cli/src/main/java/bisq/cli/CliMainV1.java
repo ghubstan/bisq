@@ -118,7 +118,7 @@ public class CliMainV1 {
 
         try {
             var request = Command.newBuilder().setParams(params).build();
-            var result = messageService.call(request).getData();
+            var result = messageService.call(request).getResult();
             out.println(result);
         } catch (StatusRuntimeException ex) {
             // Remove the leading gRPC status code (e.g. "UNKNOWN: ") from the message

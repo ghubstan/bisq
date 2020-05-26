@@ -29,7 +29,7 @@ option java_multiple_files = true;
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 service MessageService {
-    rpc Call (Command) returns (Result) {
+    rpc Call (Command) returns (Response) {
     }
 }
 
@@ -37,8 +37,8 @@ message Command {
     string params = 1;
 }
 
-message Result {
-    string data = 1;
+message Response {
+    string result = 1;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
