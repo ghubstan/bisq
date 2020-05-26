@@ -4,6 +4,7 @@ import static java.lang.String.format;
 
 class CoreHelpService {
 
+    // TODO Provide help for REST clients too.
     private final String help = new StringBuilder("Bisq RPC Client")
             .append("\n")
             .append(format("Usage: bisq-cli [options] <method> [params]"))
