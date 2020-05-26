@@ -107,7 +107,14 @@ public class CliMainV1 {
         }));
 
         var messageService = MessageServiceGrpc.newBlockingStub(channel).withCallCredentials(credentials);
-        // TODO fix joptsimple api usage and get rid of this
+
+        // The joptsimple api seems insuitable for this use case where the command line
+        // needs to be passed as is (quotes included) to the server, instead of being
+        // parsed into tokens used to set gRPC service stub fields.  Below, the full
+        // nonOptionArgs.stream() is re-mapped into a single string, with multi-word
+        // tokens re-enclosed in double quotes.  This avoids the scenario where
+        // "a new password" client param is passed to the server without its enclosing
+        // quotes, and interpreted by the server as three separate params.
         var params = nonOptionArgs.stream()
                 .map(p -> {
                     if (p.contains(" ") || p.contains("\t"))
