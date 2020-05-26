@@ -23,6 +23,21 @@ import lombok.extern.slf4j.Slf4j;
 
 import static java.lang.String.format;
 
+/**
+ * The bridge between the single gRPC service implemented by
+ * {@code GrpcMessageService} and the {@code CoreApi}.
+ * <p>
+ * Its single entry point {@code call(params, isGatewayRequest)} is responsible for
+ * parsing the full parameter string from the client, calling a {@code CoreApi} method
+ * and returning a response in the form of a String, or, throwing a gRPC
+ * {@code StatusRuntimeException}.
+ * <p>
+ * Responses will be wrapped in json if request is from a REST client,
+ * if {@code isGatewayRequest == true}.
+ * <p>
+ * {@code StatusRuntimeException}s will contain an appropriate {@code io.grpc.Status} so
+ * the grpc-gateway can translate gRPC status codes into HTTP status codes.
+ */
 @Slf4j
 class GrpcCoreBridge {
 
