@@ -107,6 +107,7 @@ public class CliMainV1 {
         }));
 
         var messageService = MessageServiceGrpc.newBlockingStub(channel).withCallCredentials(credentials);
+        // TODO fix joptsimple api usage and get rid of this
         var params = nonOptionArgs.stream()
                 .map(p -> {
                     if (p.contains(" ") || p.contains("\t"))
