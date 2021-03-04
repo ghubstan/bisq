@@ -26,11 +26,13 @@ import protobuf.PaymentAccount;
 
 import java.text.DecimalFormat;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiPredicate;
 
 import lombok.extern.slf4j.Slf4j;
 
+import static bisq.cli.CurrencyFormat.formatMarketPrice;
 import static org.apache.commons.lang3.StringUtils.capitalize;
 
 
@@ -75,7 +77,17 @@ public class BotClient {
     }
 
     /**
-     * Return the most recent BTC market price for the given currencyCode as an integer string.
+     * Return the most recent BTC market price for the given currencyCode as a string.
+     * @param currencyCode
+     * @return String
+     */
+    public String getCurrentBTCMarketPriceAsString(String currencyCode) {
+        return formatMarketPrice(getCurrentBTCMarketPrice(currencyCode));
+    }
+
+    /**
+     * Return the most recent BTC market price for the given currencyCode as an
+     * integer string.
      * @param currencyCode
      * @return String
      */
@@ -84,21 +96,33 @@ public class BotClient {
     }
 
     /**
-     * Return all BUY and SELL offers for the given currencyCode.
+     * Return all available BUY and SELL offers for the given currencyCode,
+     * sorted by creation date.
      * @param currencyCode
      * @return List<OfferInfo>
      */
-    public List<OfferInfo> getOffers(String currencyCode) {
-        var buyOffers = getBuyOffers(currencyCode);
-        if (buyOffers.size() > 0) {
-            return buyOffers;
-        } else {
-            return getSellOffers(currencyCode);
-        }
+    public List<OfferInfo> getOffersSortedByDate(String currencyCode) {
+        ArrayList<OfferInfo> offers = new ArrayList<>();
+        offers.addAll(getBuyOffers(currencyCode));
+        offers.addAll(getSellOffers(currencyCode));
+        return grpcClient.sortOffersByDate(offers);
     }
 
     /**
-     * Return BUY offers for the given currencyCode.
+     * Return all user created BUY and SELL offers for the given currencyCode,
+     * sorted by creation date.
+     * @param currencyCode
+     * @return List<OfferInfo>
+     */
+    public List<OfferInfo> getMyOffersSortedByDate(String currencyCode) {
+        ArrayList<OfferInfo> offers = new ArrayList<>();
+        offers.addAll(getMyBuyOffers(currencyCode));
+        offers.addAll(getMySellOffers(currencyCode));
+        return grpcClient.sortOffersByDate(offers);
+    }
+
+    /**
+     * Return available BUY offers for the given currencyCode.
      * @param currencyCode
      * @return List<OfferInfo>
      */
@@ -107,12 +131,30 @@ public class BotClient {
     }
 
     /**
-     * Return SELL offers for the given currencyCode.
+     * Return user created BUY offers for the given currencyCode.
+     * @param currencyCode
+     * @return List<OfferInfo>
+     */
+    public List<OfferInfo> getMyBuyOffers(String currencyCode) {
+        return grpcClient.getMyOffers("BUY", currencyCode);
+    }
+
+    /**
+     * Return available SELL offers for the given currencyCode.
      * @param currencyCode
      * @return List<OfferInfo>
      */
     public List<OfferInfo> getSellOffers(String currencyCode) {
         return grpcClient.getOffers("SELL", currencyCode);
+    }
+
+    /**
+     * Return user created SELL offers for the given currencyCode.
+     * @param currencyCode
+     * @return List<OfferInfo>
+     */
+    public List<OfferInfo> getMySellOffers(String currencyCode) {
+        return grpcClient.getMyOffers("SELL", currencyCode);
     }
 
     /**

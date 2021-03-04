@@ -25,7 +25,7 @@ class Bot {
     static final String MAKE = "MAKE";
     static final String TAKE = "TAKE";
 
-    protected final BotClient botClient;
+    protected final BotClient makerBotClient;
     protected final BitcoinCliHelper bitcoinCli;
     protected final BashScriptGenerator bashScriptGenerator;
     protected final String[] actions;
@@ -38,7 +38,7 @@ class Bot {
                BotScript botScript,
                BitcoinCliHelper bitcoinCli,
                BashScriptGenerator bashScriptGenerator) {
-        this.botClient = botClient;
+        this.makerBotClient = botClient;
         this.bitcoinCli = bitcoinCli;
         this.bashScriptGenerator = bashScriptGenerator;
         this.actions = botScript.getActions();
@@ -48,11 +48,11 @@ class Bot {
         if (isUsingTestHarness)
             this.paymentAccount = createBotPaymentAccount(botScript);
         else
-            this.paymentAccount = botClient.getPaymentAccount(botScript.getPaymentAccountIdForBot());
+            this.paymentAccount = this.makerBotClient.getPaymentAccount(botScript.getPaymentAccountIdForBot());
     }
 
     private PaymentAccount createBotPaymentAccount(BotScript botScript) {
-        BotPaymentAccountGenerator accountGenerator = new BotPaymentAccountGenerator(botClient);
+        BotPaymentAccountGenerator accountGenerator = new BotPaymentAccountGenerator(makerBotClient);
 
         String paymentMethodId = botScript.getBotPaymentMethodId();
         if (paymentMethodId != null) {
@@ -65,13 +65,10 @@ class Bot {
                                 getPaymentMethodById(paymentMethodId).getDisplayString()));
             }
         } else {
-            Country country = findCountry(botScript.getCountryCode());
+            String countryCode = botScript.getCountryCode();
+            Country country = findCountryByCode(countryCode).orElseThrow(() ->
+                    new IllegalArgumentException(countryCode + " is not a valid iso country code."));
             return accountGenerator.createF2FPaymentAccount(country, country.name + " F2F Account");
         }
-    }
-
-    private Country findCountry(String countryCode) {
-        return findCountryByCode(countryCode).orElseThrow(() ->
-                new IllegalArgumentException(countryCode + " is not a valid iso country code."));
     }
 }

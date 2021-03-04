@@ -24,7 +24,11 @@ import protobuf.PaymentAccount;
 
 import java.security.SecureRandom;
 
+import java.text.DecimalFormat;
+
 import java.io.File;
+
+import java.math.RoundingMode;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
@@ -49,7 +53,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import bisq.apitest.method.BitcoinCliHelper;
 import bisq.apitest.scenario.bot.BotClient;
 import bisq.apitest.scenario.bot.script.BashScriptGenerator;
-import bisq.apitest.scenario.bot.shutdown.ManualBotShutdownException;
 import bisq.cli.TradeFormat;
 
 @Slf4j
@@ -71,6 +74,8 @@ public abstract class BotProtocol {
     @Getter
     protected ProtocolStep currentProtocolStep;
 
+    @Getter
+    protected final String botDescription;
     @Getter // Functions within 'this' need the @Getter.
     protected final BotClient botClient;
     protected final PaymentAccount paymentAccount;
@@ -80,11 +85,14 @@ public abstract class BotProtocol {
     @Getter
     protected final BashScriptGenerator bashScriptGenerator;
 
-    public BotProtocol(BotClient botClient,
+
+    public BotProtocol(String botDescription,
+                       BotClient botClient,
                        PaymentAccount paymentAccount,
                        long protocolStepTimeLimitInMs,
                        BitcoinCliHelper bitcoinCli,
                        BashScriptGenerator bashScriptGenerator) {
+        this.botDescription = botDescription;
         this.botClient = botClient;
         this.paymentAccount = paymentAccount;
         this.currencyCode = Objects.requireNonNull(paymentAccount.getSelectedTradeCurrency()).getCode();
@@ -107,8 +115,10 @@ public abstract class BotProtocol {
     }
 
     protected void printBotProtocolStep() {
-        log.info("Starting protocol step {}.  Bot will shutdown if step not completed within {} minutes.",
-                currentProtocolStep.name(), MILLISECONDS.toMinutes(protocolStepTimeLimitInMs));
+        log.info("{} is starting protocol step {}.  Time limit is {} minutes.",
+                botDescription,
+                currentProtocolStep.name(),
+                MILLISECONDS.toMinutes(protocolStepTimeLimitInMs));
 
         if (currentProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_CONFIRMED)) {
             log.info("Generate a btc block to trigger taker's deposit fee tx confirmation.");
@@ -125,32 +135,38 @@ public abstract class BotProtocol {
 
     protected final Function<TradeInfo, TradeInfo> waitForPaymentStartedMessage = (trade) -> {
         initProtocolStep.accept(WAIT_FOR_PAYMENT_STARTED_MESSAGE);
-        try {
-            createPaymentStartedScript(trade);
-            log.info("  Waiting for a 'payment started' message from buyer for trade with id {}.", trade.getTradeId());
-            while (isWithinProtocolStepTimeLimit()) {
-                checkIfShutdownCalled("Interrupted before checking if 'payment started' message has been sent.");
-                try {
-                    var t = this.getBotClient().getTrade(trade.getTradeId());
-                    if (t.getIsFiatSent()) {
-                        log.info("Buyer has started payment for trade:\n{}", TradeFormat.format(t));
-                        return t;
-                    }
-                } catch (Exception ex) {
-                    throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
+        createPaymentStartedScript(trade);
+        log.info("{} is waiting for a 'payment started' message from buyer for trade with id {}.",
+                this.getBotDescription(),
+                trade.getTradeId());
+        while (isWithinProtocolStepTimeLimit()) {
+            checkIfShutdownCalled("Interrupted before checking if 'payment started' message has been sent.");
+            int numDelays = 0;
+            try {
+                var t = this.getBotClient().getTrade(trade.getTradeId());
+                if (t.getIsFiatSent()) {
+                    log.info("Buyer has started payment for trade:\n{}", TradeFormat.format(t));
+                    return t;
                 }
-                sleep(randomDelay.get());
-            } // end while
+            } catch (Exception ex) {
+                throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
+            }
+            if (++numDelays % 5 == 0) {
+                log.warn("{} is still waiting for 'payment started' message for trade {}",
+                        this.getBotDescription(),
+                        trade.getShortId());
+            }
+            sleep(randomDelay.get());
+        } // end while
 
-            throw new IllegalStateException("Payment was never sent; we won't wait any longer.");
-        } catch (ManualBotShutdownException ex) {
-            throw ex; // not an error, tells bot to shutdown
-        } catch (Exception ex) {
-            throw new IllegalStateException("Error while waiting payment sent message.", ex);
-        }
+        // If the while loop is exhausted, a payment started msg was not detected.
+        throw new IllegalStateException("Payment started msg never sent; we won't wait any longer.");
     };
 
     protected final Function<TradeInfo, TradeInfo> sendPaymentStartedMessage = (trade) -> {
+        log.info("{} is sending 'payment started' msg for trade with id {}.",
+                this.getBotDescription(),
+                trade.getTradeId());
         initProtocolStep.accept(SEND_PAYMENT_STARTED_MESSAGE);
         checkIfShutdownCalled("Interrupted before sending 'payment started' message.");
         this.getBotClient().sendConfirmPaymentStartedMessage(trade.getTradeId());
@@ -160,31 +176,37 @@ public abstract class BotProtocol {
     protected final Function<TradeInfo, TradeInfo> waitForPaymentReceivedConfirmation = (trade) -> {
         initProtocolStep.accept(WAIT_FOR_PAYMENT_RECEIVED_CONFIRMATION_MESSAGE);
         createPaymentReceivedScript(trade);
-        try {
-            log.info("Waiting for a 'payment received confirmation' message from seller for trade with id {}.", trade.getTradeId());
-            while (isWithinProtocolStepTimeLimit()) {
-                checkIfShutdownCalled("Interrupted before checking if 'payment received confirmation' message has been sent.");
-                try {
-                    var t = this.getBotClient().getTrade(trade.getTradeId());
-                    if (t.getIsFiatReceived()) {
-                        log.info("Seller has received payment for trade:\n{}", TradeFormat.format(t));
-                        return t;
-                    }
-                } catch (Exception ex) {
-                    throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
+        log.info("{} is waiting for a 'payment received confirmation' message from seller for trade with id {}.",
+                this.getBotDescription(),
+                trade.getTradeId());
+        int numDelays = 0;
+        while (isWithinProtocolStepTimeLimit()) {
+            checkIfShutdownCalled("Interrupted before checking if 'payment received confirmation' message has been sent.");
+            try {
+                var t = this.getBotClient().getTrade(trade.getTradeId());
+                if (t.getIsFiatReceived()) {
+                    log.info("Seller has received payment for trade:\n{}", TradeFormat.format(t));
+                    return t;
                 }
-                sleep(randomDelay.get());
-            } // end while
+            } catch (Exception ex) {
+                throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
+            }
+            if (++numDelays % 5 == 0) {
+                log.warn("{} is still waiting for 'payment received confirmation' message for trade {}",
+                        this.getBotDescription(),
+                        trade.getShortId());
+            }
+            sleep(randomDelay.get());
+        } // end while
 
-            throw new IllegalStateException("Payment was never received; we won't wait any longer.");
-        } catch (ManualBotShutdownException ex) {
-            throw ex; // not an error, tells bot to shutdown
-        } catch (Exception ex) {
-            throw new IllegalStateException("Error while waiting payment received confirmation message.", ex);
-        }
+        // If the while loop is exhausted, a payment rcvd confirmation msg was not detected within the protocol step time limit.
+        throw new IllegalStateException("Payment was never received; we won't wait any longer.");
     };
 
     protected final Function<TradeInfo, TradeInfo> sendPaymentReceivedMessage = (trade) -> {
+        log.info("{} is sending 'payment received confirmation' msg for trade with id {}.",
+                this.getBotDescription(),
+                trade.getTradeId());
         initProtocolStep.accept(SEND_PAYMENT_RECEIVED_CONFIRMATION_MESSAGE);
         checkIfShutdownCalled("Interrupted before sending 'payment received confirmation' message.");
         this.getBotClient().sendConfirmPaymentReceivedMessage(trade.getTradeId());
@@ -193,37 +215,42 @@ public abstract class BotProtocol {
 
     protected final Function<TradeInfo, TradeInfo> waitForPayoutTx = (trade) -> {
         initProtocolStep.accept(WAIT_FOR_PAYOUT_TX);
-        try {
-            log.info("Waiting on the 'payout tx published confirmation' for trade with id {}.", trade.getTradeId());
-            while (isWithinProtocolStepTimeLimit()) {
-                checkIfShutdownCalled("Interrupted before checking if payout tx has been published.");
-                try {
-                    var t = this.getBotClient().getTrade(trade.getTradeId());
-                    if (t.getIsPayoutPublished()) {
-                        log.info("Payout tx {} has been published for trade:\n{}",
-                                t.getPayoutTxId(),
-                                TradeFormat.format(t));
-                        return t;
-                    }
-                } catch (Exception ex) {
-                    throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
+        log.info("{} is waiting on the 'payout tx published' confirmation for trade with id {}.",
+                this.getBotDescription(),
+                trade.getTradeId());
+        while (isWithinProtocolStepTimeLimit()) {
+            checkIfShutdownCalled("Interrupted before checking if payout tx has been published.");
+            int numDelays = 0;
+            try {
+                var t = this.getBotClient().getTrade(trade.getTradeId());
+                if (t.getIsPayoutPublished()) {
+                    log.info("Payout tx {} has been published for trade:\n{}",
+                            t.getPayoutTxId(),
+                            TradeFormat.format(t));
+                    return t;
                 }
-                sleep(randomDelay.get());
-            } // end while
+            } catch (Exception ex) {
+                throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
+            }
+            if (++numDelays % 5 == 0) {
+                log.warn("{} is still waiting for payout tx for trade {}",
+                        this.getBotDescription(),
+                        trade.getShortId());
+            }
+            sleep(randomDelay.get());
+        } // end while
 
-            throw new IllegalStateException("Payout tx was never published; we won't wait any longer.");
-        } catch (ManualBotShutdownException ex) {
-            throw ex; // not an error, tells bot to shutdown
-        } catch (Exception ex) {
-            throw new IllegalStateException("Error while waiting for published payout tx.", ex);
-        }
+        // If the while loop is exhausted, a payout tx was not detected within the protocol step time limit.
+        throw new IllegalStateException("Payout tx was never published; we won't wait any longer.");
     };
 
     protected final Function<TradeInfo, TradeInfo> keepFundsFromTrade = (trade) -> {
         initProtocolStep.accept(KEEP_FUNDS);
         var isBuy = trade.getOffer().getDirection().equalsIgnoreCase(BUY);
         var isSell = trade.getOffer().getDirection().equalsIgnoreCase(SELL);
-        var cliUserIsSeller = (this instanceof MakerBotProtocol && isBuy) || (this instanceof TakerBotProtocol && isSell);
+        var cliUserIsSeller = (this instanceof MarketMakerBotProtocol && isBuy)
+                || (this instanceof MakerBotProtocol && isBuy)
+                || (this instanceof TakerBotProtocol && isSell);
         if (cliUserIsSeller) {
             createKeepFundsScript(trade);
         } else {
@@ -235,17 +262,20 @@ public abstract class BotProtocol {
     };
 
     protected void createPaymentStartedScript(TradeInfo trade) {
-        File script = bashScriptGenerator.createPaymentStartedScript(trade);
+        String scriptFilename = "confirmpaymentstarted-" + trade.getShortId() + ".sh";
+        File script = bashScriptGenerator.createPaymentStartedScript(trade, scriptFilename);
         printCliHintAndOrScript(script, "The manual CLI side can send a 'payment started' message");
     }
 
     protected void createPaymentReceivedScript(TradeInfo trade) {
-        File script = bashScriptGenerator.createPaymentReceivedScript(trade);
+        String scriptFilename = "confirmpaymentreceived-" + trade.getShortId() + ".sh";
+        File script = bashScriptGenerator.createPaymentReceivedScript(trade, scriptFilename);
         printCliHintAndOrScript(script, "The manual CLI side can sent a 'payment received confirmation' message");
     }
 
     protected void createKeepFundsScript(TradeInfo trade) {
-        File script = bashScriptGenerator.createKeepFundsScript(trade);
+        String scriptFilename = "keepfunds-" + trade.getShortId() + ".sh";
+        File script = bashScriptGenerator.createKeepFundsScript(trade, scriptFilename);
         printCliHintAndOrScript(script, "The manual CLI side can close the trade");
     }
 
@@ -287,29 +317,28 @@ public abstract class BotProtocol {
     private void waitForTakerDepositFee(String tradeId, ProtocolStep depositTxProtocolStep) {
         initProtocolStep.accept(depositTxProtocolStep);
         validateCurrentProtocolStep(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED, WAIT_FOR_TAKER_DEPOSIT_TX_CONFIRMED);
-        try {
-            log.info(waitingForDepositFeeTxMsg(tradeId));
-            while (isWithinProtocolStepTimeLimit()) {
-                checkIfShutdownCalled("Interrupted before checking taker deposit fee tx is published and confirmed.");
-                try {
-                    var trade = this.getBotClient().getTrade(tradeId);
-                    if (isDepositFeeTxStepComplete.test(trade))
-                        return;
-                    else
-                        sleep(randomDelay.get());
-                } catch (Exception ex) {
-                    if (this.getBotClient().tradeContractIsNotReady.test(ex, tradeId))
-                        sleep(randomDelay.get());
-                    else
-                        throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
-                }
-            }  // end while
-            throw new IllegalStateException(stoppedWaitingForDepositFeeTxMsg(this.getBotClient().getTrade(tradeId).getDepositTxId()));
-        } catch (ManualBotShutdownException ex) {
-            throw ex; // not an error, tells bot to shutdown
-        } catch (Exception ex) {
-            throw new IllegalStateException("Error while waiting for taker deposit tx to be published or confirmed.", ex);
-        }
+        log.info(waitingForDepositFeeTxMsg(tradeId));
+        while (isWithinProtocolStepTimeLimit()) {
+            String warning = format("Interrupted before checking taker deposit fee tx is %s for trade %s.",
+                    depositTxProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed",
+                    tradeId);
+            checkIfShutdownCalled(warning);
+            try {
+                var trade = this.getBotClient().getTrade(tradeId);
+                if (isDepositFeeTxStepComplete.test(trade))
+                    return;
+                else
+                    sleep(randomDelay.get());
+            } catch (Exception ex) {
+                if (this.getBotClient().tradeContractIsNotReady.test(ex, tradeId))
+                    sleep(randomDelay.get());
+                else
+                    throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
+            }
+        }  // end while
+
+        // If the while loop is exhausted, a deposit fee tx was not published or confirmed within the protocol step time limit.
+        throw new IllegalStateException(stoppedWaitingForDepositFeeTxMsg(tradeId));
     }
 
     private final Predicate<TradeInfo> isDepositFeeTxStepComplete = (trade) -> {
@@ -341,9 +370,16 @@ public abstract class BotProtocol {
                 currentProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed");
     }
 
-    private String stoppedWaitingForDepositFeeTxMsg(String txId) {
-        return format("Taker deposit fee tx %s is took too long to be %s;  we won't wait any longer.",
-                txId,
+    private String stoppedWaitingForDepositFeeTxMsg(String tradeId) {
+        return format("Taker deposit fee tx for trade %s took too long to be %s;  we won't wait any longer.",
+                tradeId,
                 currentProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed");
+    }
+
+    public static long toDollars(long volume) {
+        DecimalFormat df = new DecimalFormat("#########");
+        df.setMaximumFractionDigits(0);
+        df.setRoundingMode(RoundingMode.UNNECESSARY);
+        return Long.parseLong(df.format((double) volume / 10000));
     }
 }

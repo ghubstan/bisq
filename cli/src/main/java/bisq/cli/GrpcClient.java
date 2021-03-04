@@ -181,23 +181,23 @@ public final class GrpcClient {
     }
 
     public OfferInfo createFixedPricedOffer(String direction,
-                                 String currencyCode,
-                                 long amount,
-                                 long minAmount,
-                                 String fixedPrice,
-                                 double securityDeposit,
-                                 String paymentAcctId,
-                                 String makerFeeCurrencyCode) {
-      return createOffer(direction,
-              currencyCode,
-              amount,
-              minAmount,
-              false,
-              fixedPrice,
-              0.00,
-              securityDeposit,
-              paymentAcctId,
-              makerFeeCurrencyCode);
+                                            String currencyCode,
+                                            long amount,
+                                            long minAmount,
+                                            String fixedPrice,
+                                            double securityDeposit,
+                                            String paymentAcctId,
+                                            String makerFeeCurrencyCode) {
+        return createOffer(direction,
+                currencyCode,
+                amount,
+                minAmount,
+                false,
+                fixedPrice,
+                0.00,
+                securityDeposit,
+                paymentAcctId,
+                makerFeeCurrencyCode);
     }
 
     public OfferInfo createMarketBasedPricedOffer(String direction,
@@ -289,8 +289,8 @@ public final class GrpcClient {
     }
 
     public List<OfferInfo> getMyOffersSortedByDate(String direction, String currencyCode) {
-       var offers = getMyOffers(direction, currencyCode);
-       return offers.isEmpty() ? offers : sortOffersByDate(offers);
+        var offers = getMyOffers(direction, currencyCode);
+        return offers.isEmpty() ? offers : sortOffersByDate(offers);
     }
 
     public OfferInfo getMostRecentOffer(String direction, String currencyCode) {
@@ -298,8 +298,7 @@ public final class GrpcClient {
         return offers.isEmpty() ? null : offers.get(offers.size() - 1);
     }
 
-    // TODO move to bottom of class
-    private List<OfferInfo> sortOffersByDate(List<OfferInfo> offerInfoList) {
+    public List<OfferInfo> sortOffersByDate(List<OfferInfo> offerInfoList) {
         return offerInfoList.stream()
                 .sorted(comparing(OfferInfo::getDate))
                 .collect(Collectors.toList());

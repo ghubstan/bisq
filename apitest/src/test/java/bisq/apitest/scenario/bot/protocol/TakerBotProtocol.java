@@ -35,7 +35,8 @@ public class TakerBotProtocol extends BotProtocol {
                             long protocolStepTimeLimitInMs,
                             BitcoinCliHelper bitcoinCli,
                             BashScriptGenerator bashScriptGenerator) {
-        super(botClient,
+        super("Taker",
+                botClient,
                 paymentAccount,
                 protocolStepTimeLimitInMs,
                 bitcoinCli,
@@ -62,7 +63,7 @@ public class TakerBotProtocol extends BotProtocol {
     }
 
     private final Supplier<Optional<OfferInfo>> firstOffer = () -> {
-        var offers = botClient.getOffers(currencyCode);
+        var offers = botClient.getOffersSortedByDate(currencyCode);
         if (offers.size() > 0) {
             log.info("Offers found:\n{}", formatOfferTable(offers, currencyCode));
             OfferInfo offer = offers.get(0);
@@ -78,7 +79,7 @@ public class TakerBotProtocol extends BotProtocol {
         initProtocolStep.accept(FIND_OFFER);
         createMakeOfferScript();
         try {
-            log.info("Impatiently waiting for at least one {} offer to be created, repeatedly calling getoffers.", currencyCode);
+            log.info("Waiting for a {} offer to be created.", currencyCode);
             while (isWithinProtocolStepTimeLimit()) {
                 checkIfShutdownCalled("Interrupted while checking offers.");
                 try {

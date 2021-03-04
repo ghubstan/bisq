@@ -30,6 +30,7 @@ import java.io.IOException;
 
 import lombok.extern.slf4j.Slf4j;
 
+import static bisq.apitest.config.BisqAppConfig.alicedaemon;
 import static bisq.core.locale.CountryUtil.findCountryByCode;
 import static bisq.core.payment.payload.PaymentMethod.CLEAR_X_CHANGE_ID;
 import static bisq.core.payment.payload.PaymentMethod.getPaymentMethodById;
@@ -48,12 +49,17 @@ public abstract class AbstractBotTest extends MethodTest {
 
     protected static final String BOT_SCRIPT_NAME = "bot-script.json";
     protected static BotScript botScript;
-    protected static BotClient botClient;
+    protected static BotClient makerBotClient;
+    protected static BotClient takerBotClient;
 
     protected BashScriptGenerator getBashScriptGenerator() {
         if (botScript.isUseTestHarness()) {
-            PaymentAccount alicesAccount = createAlicesPaymentAccount();
-            botScript.setPaymentAccountIdForCliScripts(alicesAccount.getId());
+            if (config.supportingApps.contains(alicedaemon.name())) {
+                PaymentAccount alicesAccount = createAlicesPaymentAccount();
+                botScript.setPaymentAccountIdForCliScripts(alicesAccount.getId());
+            } else {
+                botScript.setPaymentAccountIdForCliScripts("Alice is using Desktop UI");
+            }
         }
         return new BashScriptGenerator(config.apiPassword,
                 botScript.getApiPortForCliScripts(),
