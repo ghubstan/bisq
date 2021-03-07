@@ -23,6 +23,7 @@ import bisq.proto.grpc.BalancesInfo;
 import bisq.proto.grpc.GetPaymentAccountsRequest;
 import bisq.proto.grpc.OfferInfo;
 import bisq.proto.grpc.TradeInfo;
+import bisq.proto.grpc.TxInfo;
 
 import protobuf.PaymentAccount;
 
@@ -431,6 +432,15 @@ public class BotClient {
                 .orElseThrow(() ->
                         new PaymentAccountNotFoundException("Could not find a payment account with name "
                                 + accountName + "."));
+    }
+
+    /**
+     * Returns a persisted Transaction with the given txId, or throws an exception.
+     * @param txId
+     * @return TxInfo
+     */
+    public TxInfo getTransaction(String txId) {
+        return grpcClient.getTransaction(txId);
     }
 
     public String toCleanGrpcExceptionMessage(Exception ex) {

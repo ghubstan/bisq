@@ -60,8 +60,8 @@ import bisq.apitest.scenario.bot.shutdown.ManualBotShutdownException;
 @Slf4j
 public class RobotBobMMBot extends Bot {
 
-    private static final int MAX_BUY_OFFERS = 200;
-    private static final int MAX_SELL_OFFERS = 0;
+    private static final int MAX_BUY_OFFERS = 0;
+    private static final int MAX_SELL_OFFERS = 100;
 
     private static final String BUYER_BOT_NAME = "Maker/Buyer Bot";
     private static final String SELLER_BOT_NAME = "Maker/Seller Bot";
@@ -314,6 +314,10 @@ public class RobotBobMMBot extends Bot {
                 return;
             }
             log.info("Taker's Bank Balance After {} trades: {}", numTrades, takersBankBalance.get());
+
+            if(numTrades > 33)
+                log.warn("Is it time for the mysterious deposit tx fee confirm problem after {} trades?", numTrades);
+
             rest(20);
         }
         log.info("Taker bot is done taking offers.  Taker's final balances:\n{}\nBank Account Balance: {}",

@@ -54,6 +54,7 @@ import bisq.apitest.method.BitcoinCliHelper;
 import bisq.apitest.scenario.bot.BotClient;
 import bisq.apitest.scenario.bot.script.BashScriptGenerator;
 import bisq.cli.TradeFormat;
+import bisq.cli.TransactionFormat;
 
 @Slf4j
 public abstract class BotProtocol {
@@ -137,28 +138,32 @@ public abstract class BotProtocol {
         initProtocolStep.accept(depositTxProtocolStep);
         validateCurrentProtocolStep(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED, WAIT_FOR_TAKER_DEPOSIT_TX_CONFIRMED);
         log.info(waitingForDepositFeeTxMsg(tradeId));
+        String warning = format("Interrupted before checking taker deposit fee tx is %s for trade %s.",
+                depositTxProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed",
+                tradeId);
         int numDelays = 0;
         while (isWithinProtocolStepTimeLimit()) {
-            String warning = format("Interrupted before checking taker deposit fee tx is %s for trade %s.",
-                    depositTxProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed",
-                    tradeId);
             checkIfShutdownCalled(warning);
             try {
                 var trade = this.getBotClient().getTrade(tradeId);
-                if (isDepositFeeTxStepComplete.test(trade))
+                if (isDepositFeeTxStepComplete.test(trade)) {
                     return;
-                else
+                } else {
+                    if (++numDelays % 5 == 0) {
+                        var tx = this.getBotClient().getTransaction(trade.getDepositTxId());
+                        log.warn("Still waiting for trade {} taker tx {} fee to be {}.\n{}",
+                                trade.getTradeId(),
+                                trade.getDepositTxId(),
+                                depositTxProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed",
+                                TransactionFormat.format(tx));
+                    }
                     sleep(randomDelay.get());
+                }
             } catch (Exception ex) {
                 if (this.getBotClient().tradeContractIsNotReady.test(ex, tradeId))
-                    sleep(randomDelay.get());
+                    continue;
                 else
                     throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
-            }
-            if (++numDelays % 5 == 0) {
-                log.warn("Still waiting for trade {} taker tx fee to be {}.",
-                        tradeId,
-                        depositTxProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed");
             }
         }  // end while
 
@@ -374,15 +379,17 @@ public abstract class BotProtocol {
     }
 
     private String waitingForDepositFeeTxMsg(String tradeId) {
-        return format("Waiting for taker deposit fee tx for trade %s to be %s.",
+        return format("%s is waiting for taker deposit fee tx for trade %s to be %s.",
+                botDescription,
                 tradeId,
                 currentProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed");
     }
 
     private String stoppedWaitingForDepositFeeTxMsg(String tradeId) {
-        return format("Taker deposit fee tx for trade %s took too long to be %s;  we won't wait any longer.",
+        return format("Taker deposit fee tx for trade %s took too long to be %s;  %s will stop waiting.",
                 tradeId,
-                currentProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed");
+                currentProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed",
+                botDescription);
     }
 
     public static long toDollars(long volume) {
