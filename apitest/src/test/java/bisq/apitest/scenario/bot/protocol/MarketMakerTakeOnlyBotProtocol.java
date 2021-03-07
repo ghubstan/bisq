@@ -5,6 +5,7 @@ import bisq.proto.grpc.TradeInfo;
 
 import protobuf.PaymentAccount;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -17,7 +18,8 @@ import static bisq.apitest.scenario.bot.protocol.ProtocolStep.FIND_OFFER;
 import static bisq.apitest.scenario.bot.protocol.ProtocolStep.TAKE_OFFER;
 import static bisq.apitest.scenario.bot.shutdown.ManualShutdown.checkIfShutdownCalled;
 import static bisq.cli.TableFormat.formatOfferTable;
-import static java.lang.System.currentTimeMillis;
+import static java.lang.String.format;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 
 
@@ -86,7 +88,7 @@ public class MarketMakerTakeOnlyBotProtocol extends BotProtocol {
     private final Supplier<OfferInfo> findOffer = () -> {
         initProtocolStep.accept(FIND_OFFER);
         log.info("Looking for a {} offer.", currencyCode);
-        int numDelays = 1;
+        int numDelays = 0;
         while (isWithinProtocolStepTimeLimit()) {
             checkIfShutdownCalled("Interrupted while checking offers.");
             try {
@@ -95,10 +97,10 @@ public class MarketMakerTakeOnlyBotProtocol extends BotProtocol {
                     return offer.get();
                 } else {
                     if (++numDelays % 5 == 0) {
-                        log.info("Still no available {} offers for taker bot:\n{}",
+                        List<OfferInfo> currentOffers = botClient.getOffersSortedByDate(currencyCode);
+                        log.info("Still no available {} offers for taker bot, current offers:\n{}",
                                 currencyCode,
-                                formatOfferTable(botClient.getOffersSortedByDate(currencyCode),
-                                        currencyCode));
+                                formatOfferTable(currentOffers, currencyCode));
                     }
                     sleep(randomDelay.get());
                 }
@@ -111,23 +113,38 @@ public class MarketMakerTakeOnlyBotProtocol extends BotProtocol {
         throw new IllegalStateException("Offer was never created; we won't wait any longer.");
     };
 
+
     private final Function<OfferInfo, TradeInfo> takeOffer = (offer) -> {
         initProtocolStep.accept(TAKE_OFFER);
         checkIfShutdownCalled("Interrupted before taking offer.");
         String feeCurrency = RANDOM.nextBoolean() ? "BSQ" : "BTC";
-        log.info("Taking {} / {} offer {}.",
-                offer.getDirection(),
-                offer.getCounterCurrencyCode(),
-                offer.getId());
-        try {
-            // TODO submit 'takeoffer' from executor and await with timeout?
-            long startTime = currentTimeMillis();
-            var trade = botClient.takeOffer(offer.getId(), paymentAccount, feeCurrency);
-            log.info("Took offer {} in {} ms.", offer.getId(), currentTimeMillis() - startTime);
-            return trade;
-        } catch (Exception ex) {
-            log.error("", ex);
-            throw new IllegalStateException("Failed to take offer {}", ex);
+        TakeOfferHelper takeOfferHelper = new TakeOfferHelper(botClient,
+                botDescription,
+                offer,
+                paymentAccount,
+                feeCurrency,
+                60);
+        takeOfferHelper.run();
+        if (takeOfferHelper.hasError()) {
+            throw new IllegalStateException(format("%s's take offer %s attempt failed.",
+                    botDescription,
+                    offer.getId()),
+                    takeOfferHelper.getError());
+
+        } else if (takeOfferHelper.hasTrade()) {
+            try {
+                log.info("{} waiting 5s for trade prep before allowing any gettrade calls.", botDescription);
+                SECONDS.sleep(5);
+            } catch (InterruptedException ignored) {
+                // empty
+            }
+            return takeOfferHelper.getTrade();
+        } else {
+            throw new IllegalStateException(format("%s's take offer %s attempt failed, but no exception was caught.",
+                    botDescription,
+                    offer.getId()));
         }
     };
 }
+
+

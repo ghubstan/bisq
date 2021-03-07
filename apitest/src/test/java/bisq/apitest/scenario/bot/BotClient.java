@@ -17,6 +17,8 @@
 
 package bisq.apitest.scenario.bot;
 
+import bisq.common.util.Utilities;
+
 import bisq.proto.grpc.BalancesInfo;
 import bisq.proto.grpc.GetPaymentAccountsRequest;
 import bisq.proto.grpc.OfferInfo;
@@ -24,20 +26,32 @@ import bisq.proto.grpc.TradeInfo;
 
 import protobuf.PaymentAccount;
 
+import io.grpc.StatusRuntimeException;
+
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+
 import java.text.DecimalFormat;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 
 import lombok.extern.slf4j.Slf4j;
 
 import static bisq.cli.CurrencyFormat.formatMarketPrice;
+import static java.lang.System.currentTimeMillis;
 import static org.apache.commons.lang3.StringUtils.capitalize;
 
 
 
 import bisq.cli.GrpcClient;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Convenience GrpcClient wrapper for bots using gRPC services.
@@ -177,14 +191,20 @@ public class BotClient {
                                                    double priceMarginAsPercent,
                                                    double securityDepositAsPercent,
                                                    String feeCurrency) {
-        return grpcClient.createMarketBasedPricedOffer(direction,
-                currencyCode,
-                amountInSatoshis,
-                minAmountInSatoshis,
-                priceMarginAsPercent,
-                securityDepositAsPercent,
-                paymentAccount.getId(),
-                feeCurrency);
+        try {
+            return grpcClient.createMarketBasedPricedOffer(direction,
+                    currencyCode,
+                    amountInSatoshis,
+                    minAmountInSatoshis,
+                    priceMarginAsPercent,
+                    securityDepositAsPercent,
+                    paymentAccount.getId(),
+                    feeCurrency);
+        } catch (StatusRuntimeException ex) {
+            String exceptionMessage = toCleanGrpcExceptionMessage(ex);
+            log.error("", ex);
+            throw new IllegalStateException(exceptionMessage);
+        }
     }
 
     /**
@@ -207,18 +227,56 @@ public class BotClient {
                                              String fixedOfferPriceAsString,
                                              double securityDepositAsPercent,
                                              String feeCurrency) {
-        return grpcClient.createFixedPricedOffer(direction,
-                currencyCode,
-                amountInSatoshis,
-                minAmountInSatoshis,
-                fixedOfferPriceAsString,
-                securityDepositAsPercent,
-                paymentAccount.getId(),
-                feeCurrency);
+        try {
+            return grpcClient.createFixedPricedOffer(direction,
+                    currencyCode,
+                    amountInSatoshis,
+                    minAmountInSatoshis,
+                    fixedOfferPriceAsString,
+                    securityDepositAsPercent,
+                    paymentAccount.getId(),
+                    feeCurrency);
+        } catch (StatusRuntimeException ex) {
+            String exceptionMessage = toCleanGrpcExceptionMessage(ex);
+            log.error("", ex);
+            throw new IllegalStateException(exceptionMessage);
+        }
     }
 
     public TradeInfo takeOffer(String offerId, PaymentAccount paymentAccount, String feeCurrency) {
         return grpcClient.takeOffer(offerId, paymentAccount.getId(), feeCurrency);
+    }
+
+    private static final int TAKE_OFFER_TIMEOUT_IN_SEC = 60;
+    private final ListeningExecutorService takeOfferExecutor =
+            Utilities.getListeningExecutorService("Take Offer - " + TAKE_OFFER_TIMEOUT_IN_SEC + "s Timeout",
+                    1,
+                    1,
+                    TAKE_OFFER_TIMEOUT_IN_SEC);
+
+    public void tryToTakeOffer(String offerId,
+                               PaymentAccount paymentAccount,
+                               String feeCurrency,
+                               Consumer<TradeInfo> resultHandler,
+                               Consumer<Throwable> errorHandler) {
+        long startTime = System.currentTimeMillis();
+        ListenableFuture<TradeInfo> future = takeOfferExecutor.submit(() ->
+                grpcClient.takeOffer(offerId, paymentAccount.getId(), feeCurrency));
+        CountDownLatch latch = new CountDownLatch(1);
+        Futures.addCallback(future, new FutureCallback<>() {
+            @Override
+            public void onSuccess(@Nullable TradeInfo result) {
+                resultHandler.accept(result);
+                log.info("Offer {} taken in {} ms.",
+                        result.getOffer().getId(),
+                        currentTimeMillis() - startTime);
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                errorHandler.accept(t);
+            }
+        }, MoreExecutors.directExecutor());
     }
 
     /**

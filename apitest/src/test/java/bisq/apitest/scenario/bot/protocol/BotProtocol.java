@@ -85,7 +85,6 @@ public abstract class BotProtocol {
     @Getter
     protected final BashScriptGenerator bashScriptGenerator;
 
-
     public BotProtocol(String botDescription,
                        BotClient botClient,
                        PaymentAccount paymentAccount,
@@ -128,10 +127,44 @@ public abstract class BotProtocol {
 
     protected final Function<TradeInfo, TradeInfo> waitForTakerFeeTxConfirm = (trade) -> {
         sleep(5000);
-        waitForTakerFeeTxPublished(trade.getTradeId());
-        waitForTakerFeeTxConfirmed(trade.getTradeId());
+        waitForTakerDepositFee(trade.getTradeId(), WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED);
+        waitForTakerDepositFee(trade.getTradeId(), WAIT_FOR_TAKER_DEPOSIT_TX_CONFIRMED);
         return trade;
     };
+
+
+    protected void waitForTakerDepositFee(String tradeId, ProtocolStep depositTxProtocolStep) {
+        initProtocolStep.accept(depositTxProtocolStep);
+        validateCurrentProtocolStep(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED, WAIT_FOR_TAKER_DEPOSIT_TX_CONFIRMED);
+        log.info(waitingForDepositFeeTxMsg(tradeId));
+        int numDelays = 0;
+        while (isWithinProtocolStepTimeLimit()) {
+            String warning = format("Interrupted before checking taker deposit fee tx is %s for trade %s.",
+                    depositTxProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed",
+                    tradeId);
+            checkIfShutdownCalled(warning);
+            try {
+                var trade = this.getBotClient().getTrade(tradeId);
+                if (isDepositFeeTxStepComplete.test(trade))
+                    return;
+                else
+                    sleep(randomDelay.get());
+            } catch (Exception ex) {
+                if (this.getBotClient().tradeContractIsNotReady.test(ex, tradeId))
+                    sleep(randomDelay.get());
+                else
+                    throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
+            }
+            if (++numDelays % 5 == 0) {
+                log.warn("Still waiting for trade {} taker tx fee to be {}.",
+                        tradeId,
+                        depositTxProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed");
+            }
+        }  // end while
+
+        // If the while loop is exhausted, a deposit fee tx was not published or confirmed within the protocol step time limit.
+        throw new IllegalStateException(stoppedWaitingForDepositFeeTxMsg(tradeId));
+    }
 
     protected final Function<TradeInfo, TradeInfo> waitForPaymentStartedMessage = (trade) -> {
         initProtocolStep.accept(WAIT_FOR_PAYMENT_STARTED_MESSAGE);
@@ -145,7 +178,9 @@ public abstract class BotProtocol {
             try {
                 var t = this.getBotClient().getTrade(trade.getTradeId());
                 if (t.getIsFiatSent()) {
-                    log.info("Buyer has started payment for trade:\n{}", TradeFormat.format(t));
+                    log.info("Buyer has started payment for trade: {}\n{}",
+                            t.getTradeId(),
+                            TradeFormat.format(t));
                     return t;
                 }
             } catch (Exception ex) {
@@ -185,7 +220,9 @@ public abstract class BotProtocol {
             try {
                 var t = this.getBotClient().getTrade(trade.getTradeId());
                 if (t.getIsFiatReceived()) {
-                    log.info("Seller has received payment for trade:\n{}", TradeFormat.format(t));
+                    log.info("Seller has received payment for trade: {}\n{}",
+                            t.getTradeId(),
+                            TradeFormat.format(t));
                     return t;
                 }
             } catch (Exception ex) {
@@ -224,8 +261,9 @@ public abstract class BotProtocol {
             try {
                 var t = this.getBotClient().getTrade(trade.getTradeId());
                 if (t.getIsPayoutPublished()) {
-                    log.info("Payout tx {} has been published for trade:\n{}",
+                    log.info("Payout tx {} has been published for trade {}:\n{}",
                             t.getPayoutTxId(),
+                            t.getTradeId(),
                             TradeFormat.format(t));
                     return t;
                 }
@@ -306,47 +344,18 @@ public abstract class BotProtocol {
         }
     }
 
-    private void waitForTakerFeeTxPublished(String tradeId) {
-        waitForTakerDepositFee(tradeId, WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED);
-    }
-
-    private void waitForTakerFeeTxConfirmed(String tradeId) {
-        waitForTakerDepositFee(tradeId, WAIT_FOR_TAKER_DEPOSIT_TX_CONFIRMED);
-    }
-
-    private void waitForTakerDepositFee(String tradeId, ProtocolStep depositTxProtocolStep) {
-        initProtocolStep.accept(depositTxProtocolStep);
-        validateCurrentProtocolStep(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED, WAIT_FOR_TAKER_DEPOSIT_TX_CONFIRMED);
-        log.info(waitingForDepositFeeTxMsg(tradeId));
-        while (isWithinProtocolStepTimeLimit()) {
-            String warning = format("Interrupted before checking taker deposit fee tx is %s for trade %s.",
-                    depositTxProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed",
-                    tradeId);
-            checkIfShutdownCalled(warning);
-            try {
-                var trade = this.getBotClient().getTrade(tradeId);
-                if (isDepositFeeTxStepComplete.test(trade))
-                    return;
-                else
-                    sleep(randomDelay.get());
-            } catch (Exception ex) {
-                if (this.getBotClient().tradeContractIsNotReady.test(ex, tradeId))
-                    sleep(randomDelay.get());
-                else
-                    throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
-            }
-        }  // end while
-
-        // If the while loop is exhausted, a deposit fee tx was not published or confirmed within the protocol step time limit.
-        throw new IllegalStateException(stoppedWaitingForDepositFeeTxMsg(tradeId));
-    }
-
     private final Predicate<TradeInfo> isDepositFeeTxStepComplete = (trade) -> {
         if (currentProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) && trade.getIsDepositPublished()) {
-            log.info("Taker deposit fee tx {} has been published.", trade.getDepositTxId());
+            log.info("{} sees trade {} taker deposit fee tx {} has been published.",
+                    this.getBotDescription(),
+                    trade.getTradeId(),
+                    trade.getDepositTxId());
             return true;
         } else if (currentProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_CONFIRMED) && trade.getIsDepositConfirmed()) {
-            log.info("Taker deposit fee tx {} has been confirmed.", trade.getDepositTxId());
+            log.info("{} sees trade {} taker deposit fee tx {} has been confirmed.",
+                    this.getBotDescription(),
+                    trade.getTradeId(),
+                    trade.getDepositTxId());
             return true;
         } else {
             return false;

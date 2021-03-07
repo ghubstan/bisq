@@ -60,8 +60,8 @@ import bisq.apitest.scenario.bot.shutdown.ManualBotShutdownException;
 @Slf4j
 public class RobotBobMMBot extends Bot {
 
-    private static final int MAX_BUY_OFFERS = 50;
-    private static final int MAX_SELL_OFFERS = 50;
+    private static final int MAX_BUY_OFFERS = 200;
+    private static final int MAX_SELL_OFFERS = 0;
 
     private static final String BUYER_BOT_NAME = "Maker/Buyer Bot";
     private static final String SELLER_BOT_NAME = "Maker/Seller Bot";
@@ -272,9 +272,23 @@ public class RobotBobMMBot extends Bot {
         isSellBotShutdown.set(true);
     };
 
+    public boolean takerShouldStayAlive() {
+        if (++numTrades > (MAX_BUY_OFFERS + MAX_SELL_OFFERS))
+            return false;
+
+        if (isTakerBotShutdown.get())
+            return false;
+
+        if ((isBuyBotShutdown.get() && isSellBotShutdown.get()))
+            return false;
+
+        return true;
+    }
+
     public final Consumer<BotClient> takerBot = (botClient) -> {
         PaymentAccount takerPaymentAccount = botClient.getPaymentAccount(this.getTakerBotPaymentAccountId());
-        while (++numTrades < (MAX_BUY_OFFERS + MAX_SELL_OFFERS)) {
+        // Keep taking offers until max offers is reached, or if any maker bot is running.
+        while (takerShouldStayAlive()) {
             try {
                 BotProtocol botProtocol = new MarketMakerTakeOnlyBotProtocol(botClient,
                         takerPaymentAccount,
@@ -302,7 +316,7 @@ public class RobotBobMMBot extends Bot {
             log.info("Taker's Bank Balance After {} trades: {}", numTrades, takersBankBalance.get());
             rest(20);
         }
-        log.info("Taker bot is done taking offers.  Taker Bot's final balances:\n{}\nBank Account Balance: {}",
+        log.info("Taker bot is done taking offers.  Taker's final balances:\n{}\nBank Account Balance: {}",
                 formatBalancesTbls(botClient.getBalance()),
                 takersBankBalance.get());
         isTakerBotShutdown.set(true);

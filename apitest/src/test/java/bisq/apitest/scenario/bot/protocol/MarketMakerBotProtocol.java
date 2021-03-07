@@ -7,7 +7,9 @@ import protobuf.PaymentAccount;
 
 import java.io.File;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -18,6 +20,7 @@ import static bisq.apitest.scenario.bot.protocol.ProtocolStep.DONE;
 import static bisq.apitest.scenario.bot.protocol.ProtocolStep.WAIT_FOR_OFFER_TAKER;
 import static bisq.apitest.scenario.bot.shutdown.ManualShutdown.checkIfShutdownCalled;
 import static bisq.cli.TableFormat.formatOfferTable;
+import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 
 
@@ -30,12 +33,12 @@ import bisq.cli.TradeFormat;
 @Slf4j
 public class MarketMakerBotProtocol extends BotProtocol {
 
-    // Target spread is 4%.  Bob will create
+    // If target spread is 4%.  Bob will create
     //      BUY  BTC offers at -2% (below mkt price)
     //      SELL BTC offers at +2% (above mkt price)
     // static final double PRICE_MARGIN = 2.00;
 
-    static final double PRICE_MARGIN = 4.00;
+    static final double PRICE_MARGIN = 6.50; // Target spread is 13%.
 
     private final String direction;
     private final AtomicLong bobsBankBalance;
@@ -87,38 +90,64 @@ public class MarketMakerBotProtocol extends BotProtocol {
 
     private final Supplier<OfferInfo> createBuyOffer = () -> {
         checkIfShutdownCalled("Interrupted before creating random BUY offer.");
-        var offer = botClient.createOfferAtMarketBasedPrice(paymentAccount,
-                "BUY",
-                currencyCode,
-                2500000,
-                2500000,
-                PRICE_MARGIN,
-                0.15,
-                "BSQ");
-        log.info("Created BUY / {} offer at {}% below current market price of {}:\n{}",
-                currencyCode,
-                PRICE_MARGIN,
-                botClient.getCurrentBTCMarketPriceAsString(currencyCode),
-                formatOfferTable(singletonList(offer), currencyCode));
-        return offer;
+        // TODO LOOP 3 times until we create a valid offer.
+        for (int i = 0; i < 3; i++) {
+            try {
+                var offer = botClient.createOfferAtMarketBasedPrice(paymentAccount,
+                        "BUY",
+                        currencyCode,
+                        2500000,
+                        2500000,
+                        PRICE_MARGIN,
+                        0.15,
+                        "BSQ");
+                log.info("Created BUY / {} offer at {}% below current market price of {}:\n{}",
+                        currencyCode,
+                        PRICE_MARGIN,
+                        botClient.getCurrentBTCMarketPriceAsString(currencyCode),
+                        formatOfferTable(singletonList(offer), currencyCode));
+                return offer;
+            } catch (Exception ex) {
+                log.error("Failed to create offer at attempt #{}.", i, ex);
+                try {
+                    TimeUnit.SECONDS.sleep(5);
+                } catch (InterruptedException interruptedException) {
+                }
+            }
+        }
+        throw new IllegalStateException(format("%s could not create offer after 3 attempts.",
+                this.getBotDescription()));
     };
 
     private final Supplier<OfferInfo> createSellOffer = () -> {
         checkIfShutdownCalled("Interrupted before creating random SELL offer.");
-        var offer = botClient.createOfferAtMarketBasedPrice(paymentAccount,
-                "SELL",
-                currencyCode,
-                2500000,
-                2500000,
-                PRICE_MARGIN,
-                0.15,
-                "BSQ");
-        log.info("Created SELL / {} offer at {}% above current market price of {}:\n{}",
-                currencyCode,
-                PRICE_MARGIN,
-                botClient.getCurrentBTCMarketPriceAsString(currencyCode),
-                formatOfferTable(singletonList(offer), currencyCode));
-        return offer;
+        // TODO LOOP 3 times until we create a valid offer.
+        for (int i = 0; i < 3; i++) {
+            try {
+                var offer = botClient.createOfferAtMarketBasedPrice(paymentAccount,
+                        "SELL",
+                        currencyCode,
+                        2500000,
+                        2500000,
+                        PRICE_MARGIN,
+                        0.15,
+                        "BSQ");
+                log.info("Created SELL / {} offer at {}% above current market price of {}:\n{}",
+                        currencyCode,
+                        PRICE_MARGIN,
+                        botClient.getCurrentBTCMarketPriceAsString(currencyCode),
+                        formatOfferTable(singletonList(offer), currencyCode));
+                return offer;
+            } catch (Exception ex) {
+                log.error("Failed to create offer at attempt #{}.", i, ex);
+                try {
+                    TimeUnit.SECONDS.sleep(5);
+                } catch (InterruptedException interruptedException) {
+                }
+            }
+        }
+        throw new IllegalStateException(format("%s could not create offer after 3 attempts.",
+                this.getBotDescription()));
     };
 
     private final Function<Supplier<OfferInfo>, TradeInfo> waitForNewTrade = (latestOffer) -> {
@@ -126,7 +155,7 @@ public class MarketMakerBotProtocol extends BotProtocol {
         OfferInfo offer = latestOffer.get();
         createTakeOfferCliScript(offer);
         log.info("Waiting for offer {} to be taken.", offer.getId());
-        int numDelays = 2;
+        int numDelays = 0;
         while (isWithinProtocolStepTimeLimit()) {
             checkIfShutdownCalled("Interrupted while waiting for offer to be taken.");
             try {
@@ -138,9 +167,10 @@ public class MarketMakerBotProtocol extends BotProtocol {
                         log.warn("Offer {} still waiting to be taken, current state = {}",
                                 offer.getId(), offer.getState());
                         String offerCounterCurrencyCode = offer.getCounterCurrencyCode();
-                        log.info("RobotBob's current offers:\n{}",
-                                formatOfferTable(botClient.getMyOffersSortedByDate(offerCounterCurrencyCode),
-                                        offerCounterCurrencyCode));
+                        List<OfferInfo> myCurrentOffers = botClient.getMyOffersSortedByDate(offerCounterCurrencyCode);
+                        log.info("RobotBob's current offers ({} is in the list, or fail):\n{}",
+                                offer.getId(),
+                                formatOfferTable(myCurrentOffers, offerCounterCurrencyCode));
                     }
                     sleep(randomDelay.get());
                 }
