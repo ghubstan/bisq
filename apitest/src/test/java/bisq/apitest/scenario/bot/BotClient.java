@@ -17,25 +17,42 @@
 
 package bisq.apitest.scenario.bot;
 
+import bisq.common.util.Utilities;
+
 import bisq.proto.grpc.BalancesInfo;
 import bisq.proto.grpc.GetPaymentAccountsRequest;
 import bisq.proto.grpc.OfferInfo;
 import bisq.proto.grpc.TradeInfo;
+import bisq.proto.grpc.TxInfo;
 
 import protobuf.PaymentAccount;
 
+import io.grpc.StatusRuntimeException;
+
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+
 import java.text.DecimalFormat;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 
 import lombok.extern.slf4j.Slf4j;
 
+import static bisq.cli.CurrencyFormat.formatMarketPrice;
+import static java.lang.System.currentTimeMillis;
 import static org.apache.commons.lang3.StringUtils.capitalize;
 
 
 
 import bisq.cli.GrpcClient;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Convenience GrpcClient wrapper for bots using gRPC services.
@@ -75,7 +92,17 @@ public class BotClient {
     }
 
     /**
-     * Return the most recent BTC market price for the given currencyCode as an integer string.
+     * Return the most recent BTC market price for the given currencyCode as a string.
+     * @param currencyCode
+     * @return String
+     */
+    public String getCurrentBTCMarketPriceAsString(String currencyCode) {
+        return formatMarketPrice(getCurrentBTCMarketPrice(currencyCode));
+    }
+
+    /**
+     * Return the most recent BTC market price for the given currencyCode as an
+     * integer string.
      * @param currencyCode
      * @return String
      */
@@ -84,21 +111,33 @@ public class BotClient {
     }
 
     /**
-     * Return all BUY and SELL offers for the given currencyCode.
+     * Return all available BUY and SELL offers for the given currencyCode,
+     * sorted by creation date.
      * @param currencyCode
      * @return List<OfferInfo>
      */
-    public List<OfferInfo> getOffers(String currencyCode) {
-        var buyOffers = getBuyOffers(currencyCode);
-        if (buyOffers.size() > 0) {
-            return buyOffers;
-        } else {
-            return getSellOffers(currencyCode);
-        }
+    public List<OfferInfo> getOffersSortedByDate(String currencyCode) {
+        ArrayList<OfferInfo> offers = new ArrayList<>();
+        offers.addAll(getBuyOffers(currencyCode));
+        offers.addAll(getSellOffers(currencyCode));
+        return grpcClient.sortOffersByDate(offers);
     }
 
     /**
-     * Return BUY offers for the given currencyCode.
+     * Return all user created BUY and SELL offers for the given currencyCode,
+     * sorted by creation date.
+     * @param currencyCode
+     * @return List<OfferInfo>
+     */
+    public List<OfferInfo> getMyOffersSortedByDate(String currencyCode) {
+        ArrayList<OfferInfo> offers = new ArrayList<>();
+        offers.addAll(getMyBuyOffers(currencyCode));
+        offers.addAll(getMySellOffers(currencyCode));
+        return grpcClient.sortOffersByDate(offers);
+    }
+
+    /**
+     * Return available BUY offers for the given currencyCode.
      * @param currencyCode
      * @return List<OfferInfo>
      */
@@ -107,12 +146,30 @@ public class BotClient {
     }
 
     /**
-     * Return SELL offers for the given currencyCode.
+     * Return user created BUY offers for the given currencyCode.
+     * @param currencyCode
+     * @return List<OfferInfo>
+     */
+    public List<OfferInfo> getMyBuyOffers(String currencyCode) {
+        return grpcClient.getMyOffers("BUY", currencyCode);
+    }
+
+    /**
+     * Return available SELL offers for the given currencyCode.
      * @param currencyCode
      * @return List<OfferInfo>
      */
     public List<OfferInfo> getSellOffers(String currencyCode) {
         return grpcClient.getOffers("SELL", currencyCode);
+    }
+
+    /**
+     * Return user created SELL offers for the given currencyCode.
+     * @param currencyCode
+     * @return List<OfferInfo>
+     */
+    public List<OfferInfo> getMySellOffers(String currencyCode) {
+        return grpcClient.getMyOffers("SELL", currencyCode);
     }
 
     /**
@@ -135,14 +192,20 @@ public class BotClient {
                                                    double priceMarginAsPercent,
                                                    double securityDepositAsPercent,
                                                    String feeCurrency) {
-        return grpcClient.createMarketBasedPricedOffer(direction,
-                currencyCode,
-                amountInSatoshis,
-                minAmountInSatoshis,
-                priceMarginAsPercent,
-                securityDepositAsPercent,
-                paymentAccount.getId(),
-                feeCurrency);
+        try {
+            return grpcClient.createMarketBasedPricedOffer(direction,
+                    currencyCode,
+                    amountInSatoshis,
+                    minAmountInSatoshis,
+                    priceMarginAsPercent,
+                    securityDepositAsPercent,
+                    paymentAccount.getId(),
+                    feeCurrency);
+        } catch (StatusRuntimeException ex) {
+            String exceptionMessage = toCleanGrpcExceptionMessage(ex);
+            log.error("", ex);
+            throw new IllegalStateException(exceptionMessage);
+        }
     }
 
     /**
@@ -165,18 +228,56 @@ public class BotClient {
                                              String fixedOfferPriceAsString,
                                              double securityDepositAsPercent,
                                              String feeCurrency) {
-        return grpcClient.createFixedPricedOffer(direction,
-                currencyCode,
-                amountInSatoshis,
-                minAmountInSatoshis,
-                fixedOfferPriceAsString,
-                securityDepositAsPercent,
-                paymentAccount.getId(),
-                feeCurrency);
+        try {
+            return grpcClient.createFixedPricedOffer(direction,
+                    currencyCode,
+                    amountInSatoshis,
+                    minAmountInSatoshis,
+                    fixedOfferPriceAsString,
+                    securityDepositAsPercent,
+                    paymentAccount.getId(),
+                    feeCurrency);
+        } catch (StatusRuntimeException ex) {
+            String exceptionMessage = toCleanGrpcExceptionMessage(ex);
+            log.error("", ex);
+            throw new IllegalStateException(exceptionMessage);
+        }
     }
 
     public TradeInfo takeOffer(String offerId, PaymentAccount paymentAccount, String feeCurrency) {
         return grpcClient.takeOffer(offerId, paymentAccount.getId(), feeCurrency);
+    }
+
+    private static final int TAKE_OFFER_TIMEOUT_IN_SEC = 60;
+    private final ListeningExecutorService takeOfferExecutor =
+            Utilities.getListeningExecutorService("Take Offer - " + TAKE_OFFER_TIMEOUT_IN_SEC + "s Timeout",
+                    1,
+                    1,
+                    TAKE_OFFER_TIMEOUT_IN_SEC);
+
+    public void tryToTakeOffer(String offerId,
+                               PaymentAccount paymentAccount,
+                               String feeCurrency,
+                               Consumer<TradeInfo> resultHandler,
+                               Consumer<Throwable> errorHandler) {
+        long startTime = System.currentTimeMillis();
+        ListenableFuture<TradeInfo> future = takeOfferExecutor.submit(() ->
+                grpcClient.takeOffer(offerId, paymentAccount.getId(), feeCurrency));
+        CountDownLatch latch = new CountDownLatch(1);
+        Futures.addCallback(future, new FutureCallback<>() {
+            @Override
+            public void onSuccess(@Nullable TradeInfo result) {
+                resultHandler.accept(result);
+                log.info("Offer {} taken in {} ms.",
+                        result.getOffer().getId(),
+                        currentTimeMillis() - startTime);
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                errorHandler.accept(t);
+            }
+        }, MoreExecutors.directExecutor());
     }
 
     /**
@@ -331,6 +432,15 @@ public class BotClient {
                 .orElseThrow(() ->
                         new PaymentAccountNotFoundException("Could not find a payment account with name "
                                 + accountName + "."));
+    }
+
+    /**
+     * Returns a persisted Transaction with the given txId, or throws an exception.
+     * @param txId
+     * @return TxInfo
+     */
+    public TxInfo getTransaction(String txId) {
+        return grpcClient.getTransaction(txId);
     }
 
     public String toCleanGrpcExceptionMessage(Exception ex) {

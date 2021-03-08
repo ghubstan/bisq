@@ -126,6 +126,10 @@ public class BashScriptGenerator {
     }
 
     public File createTakeOfferScript(OfferInfo offer) {
+        return createTakeOfferScript(offer, "takeoffer.sh");
+    }
+
+    public File createTakeOfferScript(OfferInfo offer, String scriptFilename) {
         String getOffersCmd = format("%s getoffers --direction=%s --currency-code=%s",
                 cliBase,
                 offer.getDirection(),
@@ -137,40 +141,52 @@ public class BashScriptGenerator {
         String getTradeCmd = format("%s gettrade --trade-id=%s",
                 cliBase,
                 offer.getId());
-        return createCliScript("takeoffer.sh",
+        return createCliScript(scriptFilename,
                 getOffersCmd,
                 takeOfferCmd,
-                "sleep 5",
+                "sleep 2",
                 getTradeCmd);
     }
 
     public File createPaymentStartedScript(TradeInfo trade) {
+        return createPaymentStartedScript(trade, "confirmpaymentstarted.sh");
+    }
+
+    public File createPaymentStartedScript(TradeInfo trade, String scriptFilename) {
         String paymentStartedCmd = format("%s confirmpaymentstarted --trade-id=%s",
                 cliBase,
                 trade.getTradeId());
         String getTradeCmd = format("%s gettrade --trade-id=%s", cliBase, trade.getTradeId());
-        return createCliScript("confirmpaymentstarted.sh",
+        return createCliScript(scriptFilename,
                 paymentStartedCmd,
                 "sleep 2",
                 getTradeCmd);
     }
 
     public File createPaymentReceivedScript(TradeInfo trade) {
+        return createPaymentReceivedScript(trade, "confirmpaymentreceived.sh");
+    }
+
+    public File createPaymentReceivedScript(TradeInfo trade, String scriptFilename) {
         String paymentStartedCmd = format("%s confirmpaymentreceived --trade-id=%s",
                 cliBase,
                 trade.getTradeId());
         String getTradeCmd = format("%s gettrade --trade-id=%s", cliBase, trade.getTradeId());
-        return createCliScript("confirmpaymentreceived.sh",
+        return createCliScript(scriptFilename,
                 paymentStartedCmd,
                 "sleep 2",
                 getTradeCmd);
     }
 
     public File createKeepFundsScript(TradeInfo trade) {
+        return createKeepFundsScript(trade, "keepfunds.sh");
+    }
+
+    public File createKeepFundsScript(TradeInfo trade, String scriptFilename) {
         String paymentStartedCmd = format("%s keepfunds --trade-id=%s", cliBase, trade.getTradeId());
         String getTradeCmd = format("%s gettrade --trade-id=%s", cliBase, trade.getTradeId());
         String getBalanceCmd = format("%s getbalance", cliBase);
-        return createCliScript("keepfunds.sh",
+        return createCliScript(scriptFilename,
                 paymentStartedCmd,
                 "sleep 2",
                 getTradeCmd,

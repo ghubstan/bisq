@@ -42,11 +42,11 @@ class RobotBob extends Bot {
     @Getter
     private int numTrades;
 
-    public RobotBob(BotClient botClient,
+    public RobotBob(BotClient makerBotClient,
                     BotScript botScript,
                     BitcoinCliHelper bitcoinCli,
                     BashScriptGenerator bashScriptGenerator) {
-        super(botClient, botScript, bitcoinCli, bashScriptGenerator);
+        super(makerBotClient, botScript, bitcoinCli, bashScriptGenerator);
     }
 
     public void run() {
@@ -55,13 +55,13 @@ class RobotBob extends Bot {
 
             BotProtocol botProtocol;
             if (action.equalsIgnoreCase(MAKE)) {
-                botProtocol = new MakerBotProtocol(botClient,
+                botProtocol = new MakerBotProtocol(makerBotClient,
                         paymentAccount,
                         protocolStepTimeLimitInMs,
                         bitcoinCli,
                         bashScriptGenerator);
             } else {
-                botProtocol = new TakerBotProtocol(botClient,
+                botProtocol = new TakerBotProtocol(makerBotClient,
                         paymentAccount,
                         protocolStepTimeLimitInMs,
                         bitcoinCli,
@@ -77,7 +77,7 @@ class RobotBob extends Bot {
             log.info("Completed {} successful trade{}.  Current Balance:\n{}",
                     ++numTrades,
                     numTrades == 1 ? "" : "s",
-                    formatBalancesTbls(botClient.getBalance()));
+                    formatBalancesTbls(makerBotClient.getBalance()));
 
             if (numTrades < actions.length) {
                 try {

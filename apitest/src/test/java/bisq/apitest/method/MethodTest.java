@@ -84,6 +84,23 @@ public class MethodTest extends ApiTestCase {
         }
     }
 
+    public static void startSupportingAppsInDebugMode(boolean registerDisputeAgents,
+                                           boolean generateBtcBlock,
+                                           Enum<?>... supportingApps) {
+        try {
+            // Disable call rate metering where there is no callRateMeteringConfigFile.
+            File callRateMeteringConfigFile = defaultRateMeterInterceptorConfig();
+            setUpScaffold(new String[]{
+                    "--supportingApps", toNameList.apply(supportingApps),
+                    "--callRateMeteringConfigPath", callRateMeteringConfigFile.getAbsolutePath(),
+                    "--enableBisqDebugging", "true"
+            });
+            doPostStartup(registerDisputeAgents, generateBtcBlock);
+        } catch (Exception ex) {
+            fail(ex);
+        }
+    }
+
     protected static void doPostStartup(boolean registerDisputeAgents,
                                         boolean generateBtcBlock) {
         if (registerDisputeAgents) {

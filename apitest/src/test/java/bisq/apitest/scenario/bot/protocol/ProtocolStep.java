@@ -1,5 +1,6 @@
 package bisq.apitest.scenario.bot.protocol;
 
+// TODO create final fields 'shortName', 'waitForActionMessage', 'doActionMessage', 'interruptMessage'
 public enum ProtocolStep {
     START,
     FIND_OFFER,
