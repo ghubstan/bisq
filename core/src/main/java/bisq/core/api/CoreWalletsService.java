@@ -22,6 +22,7 @@ import bisq.core.api.model.BalancesInfo;
 import bisq.core.api.model.BsqBalanceInfo;
 import bisq.core.api.model.BtcBalanceInfo;
 import bisq.core.api.model.TxFeeRateInfo;
+import bisq.core.api.model.TxInfo;
 import bisq.core.btc.Balances;
 import bisq.core.btc.exceptions.AddressEntryException;
 import bisq.core.btc.exceptions.BsqChangeBelowDustException;
@@ -343,19 +344,25 @@ class CoreWalletsService {
         if (txId.length() != 64)
             throw new IllegalArgumentException(format("%s is not a transaction id", txId));
 
+        Transaction tx;
         try {
-            Transaction tx = btcWalletService.getTransaction(txId);
-            if (tx == null)
-                throw new IllegalArgumentException(format("tx with id %s not found", txId));
-            else
-                return tx;
-
-        } catch (IllegalArgumentException ex) {
-            log.error("", ex);
+            tx = btcWalletService.getTransaction(txId);
+        } catch (Throwable t) {
+            log.error("", t);
             throw new IllegalArgumentException(
                     format("could not get transaction with id %s%ncause: %s",
                             txId,
-                            ex.getMessage().toLowerCase()));
+                            t.getMessage().toLowerCase()));
+        }
+
+        if (tx == null) {
+            throw new IllegalArgumentException(format("tx with id %s not found", txId));
+        } else if (tx.getFee() == null) {
+            log.error("Tx {} has a null fee value.  Problem tx:\n{}", tx.getTxId(), tx.toString());
+            log.error(TxInfo.getTransactionDetailString(tx));
+            throw new IllegalStateException(format("tx with id %s does not have a fee value", txId));
+        } else {
+            return tx;
         }
     }
 

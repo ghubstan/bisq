@@ -18,7 +18,6 @@
 package bisq.apitest.method;
 
 import bisq.core.api.model.PaymentAccountForm;
-import bisq.core.payment.F2FAccount;
 import bisq.core.proto.CoreProtoResolver;
 
 import bisq.common.util.Utilities;
@@ -84,6 +83,23 @@ public class MethodTest extends ApiTestCase {
         }
     }
 
+    public static void startSupportingAppsInDebugMode(boolean registerDisputeAgents,
+                                                      boolean generateBtcBlock,
+                                                      Enum<?>... supportingApps) {
+        try {
+            // Disable call rate metering where there is no callRateMeteringConfigFile.
+            File callRateMeteringConfigFile = defaultRateMeterInterceptorConfig();
+            setUpScaffold(new String[]{
+                    "--supportingApps", toNameList.apply(supportingApps),
+                    "--callRateMeteringConfigPath", callRateMeteringConfigFile.getAbsolutePath(),
+                    "--enableBisqDebugging", "true"
+            });
+            doPostStartup(registerDisputeAgents, generateBtcBlock);
+        } catch (Exception ex) {
+            fail(ex);
+        }
+    }
+
     protected static void doPostStartup(boolean registerDisputeAgents,
                                         boolean generateBtcBlock) {
         if (registerDisputeAgents) {
@@ -123,8 +139,7 @@ public class MethodTest extends ApiTestCase {
                 "  \"country\": \"" + countryCode.toUpperCase() + "\",\n" +
                 "  \"extraInfo\": \"Salt Lick #213\"\n" +
                 "}\n";
-        F2FAccount f2FAccount = (F2FAccount) createPaymentAccount(grpcClient, f2fAccountJsonString);
-        return f2FAccount;
+        return createPaymentAccount(grpcClient, f2fAccountJsonString);
     }
 
     protected final bisq.core.payment.PaymentAccount createPaymentAccount(GrpcClient grpcClient, String jsonString) {
@@ -137,6 +152,7 @@ public class MethodTest extends ApiTestCase {
 
     // Static conveniences for test methods and test case fixture setups.
 
+    @SuppressWarnings("ConstantConditions")
     protected static void registerDisputeAgents() {
         arbClient.registerDisputeAgent(MEDIATOR, DEV_PRIVILEGE_PRIV_KEY);
         arbClient.registerDisputeAgent(REFUND_AGENT, DEV_PRIVILEGE_PRIV_KEY);

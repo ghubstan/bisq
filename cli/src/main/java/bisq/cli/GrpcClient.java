@@ -302,12 +302,22 @@ public final class GrpcClient {
         return offers.isEmpty() ? null : offers.get(offers.size() - 1);
     }
 
-    // TODO move to bottom of class
-    private List<OfferInfo> sortOffersByDate(List<OfferInfo> offerInfoList) {
+    public List<OfferInfo> sortOffersByDate(List<OfferInfo> offerInfoList) {
         return offerInfoList.stream()
                 .sorted(comparing(OfferInfo::getDate))
                 .collect(Collectors.toList());
     }
+
+    public static final String MARKET_PRICE_NOT_AVAILABLE_ERROR = "could not take offer because market price for calculating trade price is unavailable";
+    public static final String PRICE_OUT_OF_TOLERANCE_ERROR = "could not take offer because taker's price is outside tolerance";
+    public static final String PRICE_CHECK_FAILED_ERROR = "could not take offer because trade price check failed";
+    public static final String NO_ARBITRATORS_ERROR = "could not take offer because no arbitrators are available";
+    public static final String NO_MEDIATORS_ERROR = "could not take offer because no mediators are available";
+    public static final String NO_REFUND_AGENTS_ERROR = "could not take offer because no refund agents are available";
+    public static final String USER_IGNORED_ERROR = "could not take offer from ignored user";
+    public static final String MAKER_DENIED_API_USER_ERROR = "could not take offer created by api user";
+    public static final String UNCONF_TX_LIMIT_HIT_ERROR = "could not take offer because you have too many unconfirmed transactions at this moment";
+    public static final String TAKE_OFFER_FAILED_FOR_UNKNOWN_REASON = "programmer error: could not take offer for unknown reason";
 
     public TradeInfo takeOffer(String offerId, String paymentAccountId, String takerFeeCurrencyCode) {
         var request = TakeOfferRequest.newBuilder()
@@ -319,29 +329,27 @@ public final class GrpcClient {
         if (reply.hasTrade()) {
             return reply.getTrade();
         } else {
-            // If there is no trade, there should be a reason in the AvailabilityResult.
-            // Convert the enum to a user error message before throwing the exception.
             switch (reply.getAvailabilityResult()) {
                 case MARKET_PRICE_NOT_AVAILABLE:
-                    throw new IllegalStateException("could not take offer because market price for calculating trade price is unavailable");
+                    throw new IllegalStateException(MARKET_PRICE_NOT_AVAILABLE_ERROR);
                 case PRICE_OUT_OF_TOLERANCE:
-                    throw new IllegalStateException("could not take offer because taker's price is outside tolerance");
+                    throw new IllegalStateException(PRICE_OUT_OF_TOLERANCE_ERROR);
                 case PRICE_CHECK_FAILED:
-                    throw new IllegalStateException("could not take offer because trade price check failed");
+                    throw new IllegalStateException(PRICE_CHECK_FAILED_ERROR);
                 case NO_ARBITRATORS:
-                    throw new IllegalStateException("could not take offer because no arbitrators are available");
+                    throw new IllegalStateException(NO_ARBITRATORS_ERROR);
                 case NO_MEDIATORS:
-                    throw new IllegalStateException("could not take offer because no mediators are available");
+                    throw new IllegalStateException(NO_MEDIATORS_ERROR);
                 case NO_REFUND_AGENTS:
-                    throw new IllegalStateException("could not take offer because no refund agents are available");
+                    throw new IllegalStateException(NO_REFUND_AGENTS_ERROR);
                 case USER_IGNORED:
-                    throw new IllegalStateException("could not take offer from ignored user");
+                    throw new IllegalStateException(USER_IGNORED_ERROR);
                 case MAKER_DENIED_API_USER:
-                    throw new IllegalStateException("could not take offer because maker is api user");
+                    throw new IllegalStateException(MAKER_DENIED_API_USER_ERROR);
                 case UNCONF_TX_LIMIT_HIT:
-                    throw new IllegalStateException("could not take offer because you have too many unconfirmed transactions at this moment");
+                    throw new IllegalStateException(UNCONF_TX_LIMIT_HIT_ERROR);
                 default:
-                    throw new IllegalStateException("programmer error: could not take offer for unknown reason");
+                    throw new IllegalStateException(TAKE_OFFER_FAILED_FOR_UNKNOWN_REASON);
             }
         }
     }

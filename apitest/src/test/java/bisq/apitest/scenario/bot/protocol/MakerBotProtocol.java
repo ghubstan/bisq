@@ -36,7 +36,8 @@ public class MakerBotProtocol extends BotProtocol {
                             long protocolStepTimeLimitInMs,
                             BitcoinCliHelper bitcoinCli,
                             BashScriptGenerator bashScriptGenerator) {
-        super(botClient,
+        super("Maker",
+                botClient,
                 paymentAccount,
                 protocolStepTimeLimitInMs,
                 bitcoinCli,
@@ -74,7 +75,7 @@ public class MakerBotProtocol extends BotProtocol {
         OfferInfo offer = randomOffer.get();
         createTakeOfferCliScript(offer);
         try {
-            log.info("Impatiently waiting for offer {} to be taken, repeatedly calling gettrade.", offer.getId());
+            log.info("Waiting for offer {} to be taken.", offer.getId());
             while (isWithinProtocolStepTimeLimit()) {
                 checkIfShutdownCalled("Interrupted while waiting for offer to be taken.");
                 try {

@@ -53,6 +53,10 @@ public class ManualShutdown {
             throw new ManualBotShutdownException(warning);
     }
 
+    public static void setShutdownCalled(boolean isShutdownCalled) {
+        SHUTDOWN_CALLED.set(isShutdownCalled);
+    }
+
     private static void deleteStaleShutdownFile() {
         try {
             deleteFileIfExists(new File(SHUTDOWN_FILENAME));
