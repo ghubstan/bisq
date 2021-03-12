@@ -28,6 +28,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 
 
 
+import bisq.apitest.method.offer.AbstractOfferTest;
 import bisq.apitest.method.trade.AbstractTradeTest;
 import bisq.apitest.method.trade.TakeBuyBTCOfferTest;
 import bisq.apitest.method.trade.TakeSellBTCOfferTest;
@@ -45,8 +46,6 @@ public class LongRunningTradesTest extends AbstractTradeTest {
     @Test
     @Order(1)
     public void testTradeLoop(final TestInfo testInfo) {
-
-
         int numTrades = 0;
         while (numTrades < 50) {
 
@@ -57,9 +56,7 @@ public class LongRunningTradesTest extends AbstractTradeTest {
             EXPECTED_PROTOCOL_STATUS.init();
             testTakeBuyBTCOffer(testInfo);
 
-
             genBtcBlocksThenWait(1, 1000 * 15);
-
 
             log.info("*******************************************************************");
             log.info("Trade # {}", ++numTrades);
@@ -70,13 +67,11 @@ public class LongRunningTradesTest extends AbstractTradeTest {
 
             genBtcBlocksThenWait(1, 1000 * 15);
         }
-
-
     }
 
     public void testTakeBuyBTCOffer(final TestInfo testInfo) {
         TakeBuyBTCOfferTest test = new TakeBuyBTCOfferTest();
-        test.setLongRunningTest(true);
+        setLongRunningTest(true);
         test.testTakeAlicesBuyOffer(testInfo);
         test.testAlicesConfirmPaymentStarted(testInfo);
         test.testBobsConfirmPaymentReceived(testInfo);
@@ -85,7 +80,7 @@ public class LongRunningTradesTest extends AbstractTradeTest {
 
     public void testTakeSellBTCOffer(final TestInfo testInfo) {
         TakeSellBTCOfferTest test = new TakeSellBTCOfferTest();
-        test.setLongRunningTest(true);
+        setLongRunningTest(true);
         test.testTakeAlicesSellOffer(testInfo);
         test.testBobsConfirmPaymentStarted(testInfo);
         test.testAlicesConfirmPaymentReceived(testInfo);
