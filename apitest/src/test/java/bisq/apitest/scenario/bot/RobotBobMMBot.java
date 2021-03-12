@@ -203,11 +203,13 @@ public class RobotBobMMBot extends Bot {
                         "BUY",
                         bobsBankBalance);
                 botProtocol.run();
+                log.info("===========================================================================================");
                 log.info("Completed {} BUY trades.  Bob's Bank Balance After {} BUY and {} SELL trades: {}",
                         ++numBuys,
                         numBuys,
                         numSells,
                         bobsBankBalance.get());
+                log.info("===========================================================================================");
                 rest(20);
             }
         } catch (ManualBotShutdownException ex) {
@@ -243,11 +245,13 @@ public class RobotBobMMBot extends Bot {
                         "SELL",
                         bobsBankBalance);
                 botProtocol.run();
+                log.info("===========================================================================================");
                 log.info("Completed {} SELL trades.  Bob's Bank Balance After {} BUY and {} SELL trades: {}",
                         ++numSells,
                         numBuys,
                         numSells,
                         bobsBankBalance.get());
+                log.info("===========================================================================================");
                 rest(20);
             }
         } catch (ManualBotShutdownException ex) {
@@ -310,9 +314,12 @@ public class RobotBobMMBot extends Bot {
                 this.setTakerBotException(ex);
                 return;
             }
-            log.info("Taker's Bank Balance After {} trades: {}", numTrades, takersBankBalance.get());
 
-            if (numTrades > 33)
+            log.info("===========================================================================================");
+            log.info("Taker's Bank Balance After {} trades: {}", numTrades, takersBankBalance.get());
+            log.info("===========================================================================================");
+
+            if (numTrades == 33)
                 log.warn("Is it time for the mysterious deposit tx fee confirm problem after {} trades?", numTrades);
 
             rest(20);

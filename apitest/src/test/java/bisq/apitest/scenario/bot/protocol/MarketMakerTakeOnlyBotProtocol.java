@@ -149,7 +149,6 @@ public class MarketMakerTakeOnlyBotProtocol extends BotProtocol {
                     botDescription,
                     offer.getId()));
         }
-
     };
 }
 

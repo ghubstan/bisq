@@ -87,10 +87,10 @@ public class TakeOfferHelper {
         checkIfShutdownCalled("Interrupted before attempting to take offer " + offer.getId());
         int attemptCount = 0;
         while (++attemptCount < maxAttemptsBeforeFail) {
+            logCurrentTakeOfferAttempt(attemptCount);
+
             AtomicReference<TradeInfo> newTradeReference = new AtomicReference(null);
             AtomicReference<Throwable> takeOfferErrorReference = new AtomicReference(null);
-
-            logCurrentTakeOfferAttempt(attemptCount);
             sendTakeOfferRequest(newTradeReference, takeOfferErrorReference);
 
             // If we have a trade, exit now.  If we have a throwable, we might make
@@ -101,7 +101,7 @@ public class TakeOfferHelper {
                 break;
             } else if (takeOfferErrorIsNotFatal.test(takeOfferErrorReference)) {
                 takeOfferError = takeOfferErrorReference.get();
-                logNextTakeOfferAttemptAndWait(attemptCount, 10);
+                logNextTakeOfferAttemptAndWait(attemptCount, 30); // TODO ctr arg?
                 // Reset the single attempt deadline and try again.
                 setSingleAttemptDeadline.accept(currentTimeMillis());
             } else if (takeOfferErrorReference.get() != null) {
@@ -119,7 +119,7 @@ public class TakeOfferHelper {
         // Take care to not let bots exceed call rate limit on mainnet.
         log.info("The takeoffer {} request attempt #{} will be made in {} seconds.",
                 offer.getId(),
-                attemptCount+1,
+                attemptCount + 1,
                 waitInSec);
         try {
             SECONDS.sleep(waitInSec);
@@ -137,10 +137,11 @@ public class TakeOfferHelper {
                 attemptCount);
     }
 
-    private final Predicate<AtomicReference<TradeInfo>> isSuccessfulTakeOfferRequest = (t) -> {
-        if (t.get() != null) {
+    private final Predicate<AtomicReference<TradeInfo>> isSuccessfulTakeOfferRequest = (reference) -> {
+        var trade = reference.get();
+        if (trade != null) {
             try {
-                log.info("Created trade {}  Allowing 5s for trade prep before continuing.", newTrade.getTradeId());
+                log.info("Created trade {}  Allowing 5s for trade prep before continuing.", trade.getTradeId());
                 SECONDS.sleep(5);
             } catch (InterruptedException ignored) {
                 // empty
@@ -151,10 +152,10 @@ public class TakeOfferHelper {
         }
     };
 
-    private final Predicate<AtomicReference<Throwable>> takeOfferErrorIsNotFatal = (e) -> {
-        Throwable t = e.get();
-        if (t != null) {
-            return this.getBotClient().takeOfferFailedForOneOfTheseReasons(t,
+    private final Predicate<AtomicReference<Throwable>> takeOfferErrorIsNotFatal = (reference) -> {
+        var throwable = reference.get();
+        if (throwable != null) {
+            return this.getBotClient().takeOfferFailedForOneOfTheseReasons(throwable,
                     PRICE_OUT_OF_TOLERANCE_ERROR,
                     UNCONF_TX_LIMIT_HIT_ERROR);
         } else {
