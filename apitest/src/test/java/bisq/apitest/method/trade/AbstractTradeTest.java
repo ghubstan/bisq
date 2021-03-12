@@ -2,6 +2,8 @@ package bisq.apitest.method.trade;
 
 import bisq.proto.grpc.TradeInfo;
 
+import java.util.function.Supplier;
+
 import org.slf4j.Logger;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -21,6 +23,8 @@ public class AbstractTradeTest extends AbstractOfferTest {
 
     // A Trade ID cache for use in @Test sequences.
     protected static String tradeId;
+
+    protected final Supplier<Integer> maxTradeStateAndPhaseChecks = () -> isLongRunningTest ? 10 : 2;
 
     @BeforeAll
     public static void initStaticFixtures() {
