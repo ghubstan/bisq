@@ -103,22 +103,25 @@ public class TakeBuyBTCOfferTest extends AbstractTradeTest {
                 logTrade(log, testInfo, "Bob's view after taking offer and sending deposit", trade);
             }
 
-            for (int i = 1; i <= (isLongRunningTest ? 5 : 2); i++) {
-                genBtcBlocksThenWait(1, 2500);
+            genBtcBlocksThenWait(1, 2500);
+            for (int i = 1; i <= maxTradeStateAndPhaseChecks.get(); i++) {
                 trade = bobClient.getTrade(trade.getTradeId());
 
                 if (!trade.getIsDepositConfirmed()) {
-                    log.info("Waiting for {}: DEPOSIT_CONFIRMED_IN_BLOCK_CHAIN, attempt # {}", trade.getDepositTxId(), i);
+                    log.warn("Bob still waiting on trade {} tx {}: DEPOSIT_CONFIRMED_IN_BLOCK_CHAIN, attempt # {}",
+                            trade.getShortId(),
+                            trade.getDepositTxId(),
+                            i);
                     sleep(5000);
                     continue;
+                } else {
+                    EXPECTED_PROTOCOL_STATUS.setState(DEPOSIT_CONFIRMED_IN_BLOCK_CHAIN)
+                            .setPhase(DEPOSIT_CONFIRMED)
+                            .setDepositConfirmed(true);
+                    verifyExpectedProtocolStatus(trade);
+                    logTrade(log, testInfo, "Bob's view after deposit is confirmed", trade);
+                    break;
                 }
-
-                EXPECTED_PROTOCOL_STATUS.setState(DEPOSIT_CONFIRMED_IN_BLOCK_CHAIN)
-                        .setPhase(DEPOSIT_CONFIRMED)
-                        .setDepositConfirmed(true);
-                verifyExpectedProtocolStatus(trade);
-                logTrade(log, testInfo, "Bob's view after deposit is confirmed", trade);
-                break;
             }
 
         } catch (StatusRuntimeException e) {
@@ -135,10 +138,14 @@ public class TakeBuyBTCOfferTest extends AbstractTradeTest {
             Predicate<TradeInfo> tradeStateAndPhaseCorrect = (t) ->
                     t.getState().equals(DEPOSIT_CONFIRMED_IN_BLOCK_CHAIN.name())
                             && t.getPhase().equals(DEPOSIT_CONFIRMED.name());
-            for (int i = 1; i <= (isLongRunningTest ? 5 : 2); i++) {
+
+
+            for (int i = 1; i <= maxTradeStateAndPhaseChecks.get(); i++) {
                 if (!tradeStateAndPhaseCorrect.test(trade)) {
-                    log.error("INVALID_PHASE for trade in STATE={} PHASE={} before confirming payment started.",
-                            trade.getState(), trade.getPhase());
+                    log.warn("INVALID_PHASE for Alice's trade {} in STATE={} PHASE={}, cannot confirm payment started yet.",
+                            trade.getShortId(),
+                            trade.getState(),
+                            trade.getPhase());
                     // fail("Bad trade state and phase.");
                     sleep(1000 * 10);
                     trade = aliceClient.getTrade(tradeId);
@@ -149,7 +156,8 @@ public class TakeBuyBTCOfferTest extends AbstractTradeTest {
             }
 
             if (!tradeStateAndPhaseCorrect.test(trade)) {
-                fail(format("INVALID_PHASE for trade in STATE=%s PHASE=%s before confirming payment received.",
+                fail(format("INVALID_PHASE for Alice's trade %s in STATE=%s PHASE=%s, could not confirm payment started.",
+                        trade.getShortId(),
                         trade.getState(),
                         trade.getPhase()));
             }
@@ -157,23 +165,24 @@ public class TakeBuyBTCOfferTest extends AbstractTradeTest {
             aliceClient.confirmPaymentStarted(trade.getTradeId());
             sleep(6000);
 
-            for (int i = 1; i <= (isLongRunningTest ? 5 : 2); i++) {
+            for (int i = 1; i <= maxTradeStateAndPhaseChecks.get(); i++) {
                 trade = aliceClient.getTrade(tradeId);
 
                 if (!trade.getIsFiatSent()) {
-                    log.info("Waiting for BUYER_SAW_ARRIVED_FIAT_PAYMENT_INITIATED_MSG, attempt # {}", i);
+                    log.warn("Alice still waiting for trade {} BUYER_SAW_ARRIVED_FIAT_PAYMENT_INITIATED_MSG, attempt # {}",
+                            trade.getShortId(),
+                            i);
                     sleep(5000);
                     continue;
+                } else {
+                    assertEquals(OFFER_FEE_PAID.name(), trade.getOffer().getState());
+                    EXPECTED_PROTOCOL_STATUS.setState(BUYER_SAW_ARRIVED_FIAT_PAYMENT_INITIATED_MSG)
+                            .setPhase(FIAT_SENT)
+                            .setFiatSent(true);
+                    verifyExpectedProtocolStatus(trade);
+                    logTrade(log, testInfo, "Alice's view after confirming fiat payment sent", trade);
+                    break;
                 }
-
-                assertEquals(OFFER_FEE_PAID.name(), trade.getOffer().getState());
-                EXPECTED_PROTOCOL_STATUS.setState(BUYER_SAW_ARRIVED_FIAT_PAYMENT_INITIATED_MSG)
-                        .setPhase(FIAT_SENT)
-                        .setFiatSent(true);
-                verifyExpectedProtocolStatus(trade);
-                logTrade(log, testInfo, "Alice's view after confirming fiat payment sent", trade);
-                break;
-
             }
         } catch (StatusRuntimeException e) {
             fail(e);
@@ -190,10 +199,12 @@ public class TakeBuyBTCOfferTest extends AbstractTradeTest {
                     t.getState().equals(SELLER_RECEIVED_FIAT_PAYMENT_INITIATED_MSG.name())
                             && (t.getPhase().equals(PAYOUT_PUBLISHED.name()) || t.getPhase().equals(FIAT_SENT.name()));
 
-            for (int i = 1; i <= (isLongRunningTest ? 5 : 2); i++) {
+            for (int i = 1; i <= maxTradeStateAndPhaseChecks.get(); i++) {
                 if (!tradeStateAndPhaseCorrect.test(trade)) {
-                    log.error("INVALID_PHASE for trade in STATE={} PHASE={} before confirming payment received.",
-                            trade.getState(), trade.getPhase());
+                    log.warn("INVALID_PHASE for Bob's trade {} in STATE={} PHASE={}, cannot confirm payment received yet.",
+                            trade.getShortId(),
+                            trade.getState(),
+                            trade.getPhase());
                     // fail("Bad trade state and phase.");
                     sleep(1000 * 10);
                     trade = bobClient.getTrade(tradeId);
@@ -204,7 +215,8 @@ public class TakeBuyBTCOfferTest extends AbstractTradeTest {
             }
 
             if (!tradeStateAndPhaseCorrect.test(trade)) {
-                fail(format("INVALID_PHASE for trade in STATE=%s PHASE=%s before confirming payment received.",
+                fail(format("INVALID_PHASE for Bob's trade %s in STATE=%s PHASE=%s, cannot confirm payment received.",
+                        trade.getShortId(),
                         trade.getState(),
                         trade.getPhase()));
             }

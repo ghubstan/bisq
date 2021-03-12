@@ -38,11 +38,6 @@ import bisq.apitest.method.trade.TakeSellBTCOfferTest;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class LongRunningTradesTest extends AbstractTradeTest {
 
-    @BeforeEach
-    public void init() {
-        EXPECTED_PROTOCOL_STATUS.init();
-    }
-
     @Test
     @Order(1)
     public void testTradeLoop(final TestInfo testInfo) {
