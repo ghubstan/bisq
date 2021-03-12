@@ -13,5 +13,5 @@ include 'seednode'
 include 'statsnode'
 include 'inventory'
 include 'apitest'
-
+// includeBuild("../bitcoinj/bitcoinj-bisq_0.15.8") {}
 rootProject.name = 'bisq'
