@@ -20,8 +20,11 @@ package bisq.apitest.method.trade;
 import bisq.core.payment.PaymentAccount;
 
 import bisq.proto.grpc.BtcBalanceInfo;
+import bisq.proto.grpc.TradeInfo;
 
 import io.grpc.StatusRuntimeException;
+
+import java.util.function.Predicate;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,8 +37,12 @@ import org.junit.jupiter.api.TestMethodOrder;
 
 import static bisq.cli.CurrencyFormat.formatSatoshis;
 import static bisq.core.btc.wallet.Restrictions.getDefaultBuyerSecurityDepositAsPercent;
-import static bisq.core.trade.Trade.Phase.*;
+import static bisq.core.trade.Trade.Phase.DEPOSIT_CONFIRMED;
+import static bisq.core.trade.Trade.Phase.FIAT_SENT;
+import static bisq.core.trade.Trade.Phase.PAYOUT_PUBLISHED;
+import static bisq.core.trade.Trade.Phase.WITHDRAWN;
 import static bisq.core.trade.Trade.State.*;
+import static java.lang.String.format;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -90,21 +97,35 @@ public class TakeSellBTCOfferTest extends AbstractTradeTest {
             var takeableUsdOffers = bobClient.getOffersSortedByDate("sell", "usd");
             assertEquals(0, takeableUsdOffers.size());
 
+            /*
             trade = bobClient.getTrade(trade.getTradeId());
             EXPECTED_PROTOCOL_STATUS.setState(BUYER_RECEIVED_DEPOSIT_TX_PUBLISHED_MSG)
                     .setPhase(DEPOSIT_PUBLISHED)
                     .setDepositPublished(true);
             verifyExpectedProtocolStatus(trade);
-
             logTrade(log, testInfo, "Bob's view after taking offer and sending deposit", trade);
+             */
 
-            genBtcBlocksThenWait(1, 1000);
-            trade = bobClient.getTrade(trade.getTradeId());
-            EXPECTED_PROTOCOL_STATUS.setState(DEPOSIT_CONFIRMED_IN_BLOCK_CHAIN)
-                    .setPhase(DEPOSIT_CONFIRMED)
-                    .setDepositConfirmed(true);
-            verifyExpectedProtocolStatus(trade);
-            logTrade(log, testInfo, "Bob's view after deposit is confirmed", trade);
+
+            for (int i = 1; i <= (isLongRunningTest ? 5 : 2); i++) {
+                genBtcBlocksThenWait(1, 2500);
+                trade = bobClient.getTrade(trade.getTradeId());
+
+                if (!trade.getIsDepositConfirmed()) {
+                    log.info("Waiting for {}: DEPOSIT_CONFIRMED_IN_BLOCK_CHAIN, attempt # {}", trade.getDepositTxId(), i);
+                    sleep(5000);
+                    continue;
+                }
+
+                EXPECTED_PROTOCOL_STATUS.setState(DEPOSIT_CONFIRMED_IN_BLOCK_CHAIN)
+                        .setPhase(DEPOSIT_CONFIRMED)
+                        .setDepositConfirmed(true);
+                verifyExpectedProtocolStatus(trade);
+                logTrade(log, testInfo, "Bob's view after deposit is confirmed", trade);
+                break;
+            }
+
+
         } catch (StatusRuntimeException e) {
             fail(e);
         }
@@ -115,17 +136,49 @@ public class TakeSellBTCOfferTest extends AbstractTradeTest {
     public void testBobsConfirmPaymentStarted(final TestInfo testInfo) {
         try {
             var trade = bobClient.getTrade(tradeId);
-            bobClient.confirmPaymentStarted(tradeId);
-            sleep(3000);
 
-            trade = bobClient.getTrade(tradeId);
-            // Note: offer.state == available
-            assertEquals(AVAILABLE.name(), trade.getOffer().getState());
-            EXPECTED_PROTOCOL_STATUS.setState(BUYER_SAW_ARRIVED_FIAT_PAYMENT_INITIATED_MSG)
-                    .setPhase(FIAT_SENT)
-                    .setFiatSent(true);
-            verifyExpectedProtocolStatus(trade);
-            logTrade(log, testInfo, "Bob's view after confirming fiat payment sent", trade);
+            Predicate<TradeInfo> tradeStateAndPhaseCorrect = (t) ->
+                    t.getState().equals(DEPOSIT_CONFIRMED_IN_BLOCK_CHAIN.name()) && t.getPhase().equals(DEPOSIT_CONFIRMED.name());
+            for (int i = 1; i <= (isLongRunningTest ? 5 : 2); i++) {
+                if (!tradeStateAndPhaseCorrect.test(trade)) {
+                    log.error("INVALID_PHASE for trade in STATE={} PHASE={} before confirming payment started.",
+                            trade.getState(), trade.getPhase());
+                    // fail("Bad trade state and phase.");
+                    sleep(1000 * 10);
+                    trade = bobClient.getTrade(tradeId);
+                    continue;
+                } else {
+                    break;
+                }
+            }
+
+            if (!tradeStateAndPhaseCorrect.test(trade)) {
+                fail(format("INVALID_PHASE for trade in STATE=%s PHASE=%s before confirming payment started.",
+                        trade.getState(),
+                        trade.getPhase()));
+            }
+
+            bobClient.confirmPaymentStarted(tradeId);
+            sleep(6000);
+
+            for (int i = 1; i <= (isLongRunningTest ? 5 : 2); i++) {
+                trade = bobClient.getTrade(tradeId);
+
+                if (!trade.getIsFiatSent()) {
+                    log.info("Waiting for BUYER_SAW_ARRIVED_FIAT_PAYMENT_INITIATED_MSG, attempt # {}", i);
+                    sleep(5000);
+                    continue;
+                }
+
+                // Note: offer.state == available
+                assertEquals(AVAILABLE.name(), trade.getOffer().getState());
+                EXPECTED_PROTOCOL_STATUS.setState(BUYER_SAW_ARRIVED_FIAT_PAYMENT_INITIATED_MSG)
+                        .setPhase(FIAT_SENT)
+                        .setFiatSent(true);
+                verifyExpectedProtocolStatus(trade);
+                logTrade(log, testInfo, "Bob's view after confirming fiat payment sent", trade);
+                break;
+            }
         } catch (StatusRuntimeException e) {
             fail(e);
         }
@@ -136,6 +189,29 @@ public class TakeSellBTCOfferTest extends AbstractTradeTest {
     public void testAlicesConfirmPaymentReceived(final TestInfo testInfo) {
         try {
             var trade = aliceClient.getTrade(tradeId);
+
+            Predicate<TradeInfo> tradeStateAndPhaseCorrect = (t) ->
+                    t.getState().equals(SELLER_RECEIVED_FIAT_PAYMENT_INITIATED_MSG.name())
+                            && (t.getPhase().equals(PAYOUT_PUBLISHED.name()) || t.getPhase().equals(FIAT_SENT.name()));
+            for (int i = 1; i <= (isLongRunningTest ? 5 : 2); i++) {
+                if (!tradeStateAndPhaseCorrect.test(trade)) {
+                    log.error("INVALID_PHASE for trade in STATE={} PHASE={} before confirming payment received.",
+                            trade.getState(), trade.getPhase());
+                    // fail("Bad trade state and phase.");
+                    sleep(1000 * 10);
+                    trade = aliceClient.getTrade(tradeId);
+                    continue;
+                } else {
+                    break;
+                }
+            }
+
+            if (!tradeStateAndPhaseCorrect.test(trade)) {
+                fail(format("INVALID_PHASE for trade in STATE=%s PHASE=%s before confirming payment received.",
+                        trade.getState(),
+                        trade.getPhase()));
+            }
+
             aliceClient.confirmPaymentReceived(trade.getTradeId());
             sleep(3000);
 
@@ -173,7 +249,7 @@ public class TakeSellBTCOfferTest extends AbstractTradeTest {
             verifyExpectedProtocolStatus(trade);
             logTrade(log, testInfo, "Bob's view after withdrawing funds to external wallet", trade);
             BtcBalanceInfo currentBalance = bobClient.getBtcBalances();
-            log.debug("{} Bob's current available balance: {} BTC",
+            log.info("{} Bob's current available balance: {} BTC",
                     testName(testInfo),
                     formatSatoshis(currentBalance.getAvailableBalance()));
         } catch (StatusRuntimeException e) {

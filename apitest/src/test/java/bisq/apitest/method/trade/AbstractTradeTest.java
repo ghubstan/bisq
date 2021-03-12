@@ -44,7 +44,10 @@ public class AbstractTradeTest extends AbstractOfferTest {
         assertNotNull(trade);
         assertEquals(EXPECTED_PROTOCOL_STATUS.state.name(), trade.getState());
         assertEquals(EXPECTED_PROTOCOL_STATUS.phase.name(), trade.getPhase());
-        assertEquals(EXPECTED_PROTOCOL_STATUS.isDepositPublished, trade.getIsDepositPublished());
+
+        if (!isLongRunningTest)
+            assertEquals(EXPECTED_PROTOCOL_STATUS.isDepositPublished, trade.getIsDepositPublished());
+
         assertEquals(EXPECTED_PROTOCOL_STATUS.isDepositConfirmed, trade.getIsDepositConfirmed());
         assertEquals(EXPECTED_PROTOCOL_STATUS.isFiatSent, trade.getIsFiatSent());
         assertEquals(EXPECTED_PROTOCOL_STATUS.isFiatReceived, trade.getIsFiatReceived());
@@ -56,6 +59,12 @@ public class AbstractTradeTest extends AbstractOfferTest {
                                   TestInfo testInfo,
                                   String description,
                                   TradeInfo trade) {
+        log.info(String.format("%s %s%n%s",
+                testName(testInfo),
+                description.toUpperCase(),
+                format(trade)));
+        var depositTx = aliceClient.getTransaction(trade.getDepositTxId());
+
         if (log.isDebugEnabled()) {
             log.debug(String.format("%s %s%n%s",
                     testName(testInfo),

@@ -358,9 +358,10 @@ class CoreWalletsService {
         if (tx == null) {
             throw new IllegalArgumentException(format("tx with id %s not found", txId));
         } else if (tx.getFee() == null) {
-            log.error("Tx {} has a null fee value.  Problem tx:\n{}", tx.getTxId(), tx.toString());
-            log.error(TxInfo.getTransactionDetailString(tx));
-            throw new IllegalStateException(format("tx with id %s does not have a fee value", txId));
+            log.warn("Tx {} has a null fee value.  Problem tx:\n{}", tx.getTxId(), tx.toString());
+            // log.warn(TxInfo.getTransactionDetailString(tx));
+            // throw new IllegalStateException(format("tx with id %s does not have a fee value", txId));
+            return tx;
         } else {
             return tx;
         }

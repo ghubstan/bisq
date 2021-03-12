@@ -60,15 +60,26 @@ public class TxInfo implements Payload {
         if (transaction == null)
             throw new IllegalStateException("server created a null transaction");
 
-        return new TxInfo.TxInfoBuilder()
-                .withTxId(transaction.getTxId().toString())
-                .withInputSum(transaction.getInputSum().value)
-                .withOutputSum(transaction.getOutputSum().value)
-                .withFee(transaction.getFee().value)
-                .withSize(transaction.getMessageSize())
-                .withIsPending(transaction.isPending())
-                .withMemo(transaction.getMemo())
-                .build();
+        if (transaction.getFee() != null)
+            return new TxInfo.TxInfoBuilder()
+                    .withTxId(transaction.getTxId().toString())
+                    .withInputSum(transaction.getInputSum().value)
+                    .withOutputSum(transaction.getOutputSum().value)
+                    .withFee(transaction.getFee().value)
+                    .withSize(transaction.getMessageSize())
+                    .withIsPending(transaction.isPending())
+                    .withMemo(transaction.getMemo())
+                    .build();
+        else
+            return new TxInfo.TxInfoBuilder()
+                    .withTxId(transaction.getTxId().toString())
+                    .withInputSum(transaction.getInputSum().value)
+                    .withOutputSum(transaction.getOutputSum().value)
+                    // Do not set fee.
+                    .withSize(transaction.getMessageSize())
+                    .withIsPending(transaction.isPending())
+                    .withMemo(transaction.getMemo())
+                    .build();
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
