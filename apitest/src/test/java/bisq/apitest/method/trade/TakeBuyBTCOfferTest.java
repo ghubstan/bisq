@@ -55,7 +55,7 @@ import static protobuf.OpenOffer.State.AVAILABLE;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class TakeBuyBTCOfferTest extends AbstractTradeTest {
 
-    // Alice is buyer, Bob is seller.
+    // Alice is maker/buyer, Bob is taker/seller.
 
     // Maker and Taker fees are in BSQ.
     private static final String TRADE_FEE_CURRENCY_CODE = "bsq";
@@ -104,6 +104,7 @@ public class TakeBuyBTCOfferTest extends AbstractTradeTest {
             }
 
             genBtcBlocksThenWait(1, 2500);
+
             for (int i = 1; i <= maxTradeStateAndPhaseChecks.get(); i++) {
                 trade = bobClient.getTrade(trade.getTradeId());
 
@@ -122,6 +123,13 @@ public class TakeBuyBTCOfferTest extends AbstractTradeTest {
                     logTrade(log, testInfo, "Bob's view after deposit is confirmed", trade);
                     break;
                 }
+            }
+
+            if (!trade.getIsDepositConfirmed()) {
+                fail(format("INVALID_PHASE for Bob's trade %s in STATE=%s PHASE=%s, deposit tx was never confirmed.",
+                        trade.getShortId(),
+                        trade.getState(),
+                        trade.getPhase()));
             }
 
         } catch (StatusRuntimeException e) {
