@@ -27,6 +27,8 @@ import java.math.MathContext;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -57,12 +59,12 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarketMakerBotProtocol.class);
 
     private static final BigDecimal MAX_BTC_AMOUNT_DEVIATION_SIZE = new BigDecimal("0.000001");
-    private static final BigDecimal MAX_BSQ_PRICE_DEVIATION_SIZE = new BigDecimal("0.000001");
-    private static final BigDecimal MARGIN_PERCENT_MULTIPLICAND = new BigDecimal("0.01");
+    private static final BigDecimal MAX_BSQ_PRICE_DEVIATION_SIZE = new BigDecimal("0.0000001");
+    private static final BigDecimal PERCENT_MULTIPLICAND = new BigDecimal("0.01");
 
     protected final String direction;
     @Getter
-    protected final double priceMargin;
+    protected final BigDecimal priceMargin;
     @Getter
     protected final BigDecimal targetBsqPrice;
     @Getter
@@ -74,10 +76,14 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
     @Getter
     protected final int maxCreateOfferFailureLimit;
 
+    protected final Supplier<BigDecimal> randomPercent = () ->
+            new BigDecimal(Double.toString(RANDOM.nextDouble())).round(new MathContext(2, HALF_UP));
+
+    protected final Function<BigDecimal, BigDecimal> calculatedMargin = (targetSpread) ->
+            targetSpread.divide(new BigDecimal(2)).round(new MathContext(3, HALF_UP));
+
     protected final Supplier<Long> nextTradeBtcAmount = () -> {
-        // TODO Fix unpredictable BigDecimal constructor.
-        BigDecimal nextBtcAmountDeviation = new BigDecimal(RANDOM.nextDouble() * MAX_BTC_AMOUNT_DEVIATION_SIZE.doubleValue(),
-                new MathContext(2, HALF_UP));
+        BigDecimal nextBtcAmountDeviation = randomPercent.get().multiply(MAX_BTC_AMOUNT_DEVIATION_SIZE);
         BigDecimal nextTradeBtcAmount = RANDOM.nextBoolean()
                 ? this.getTargetBtcAmount().subtract(nextBtcAmountDeviation)
                 : this.getTargetBtcAmount().add(nextBtcAmountDeviation);
@@ -90,40 +96,36 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
         return amountInSatoshis;
     };
 
-    // TODO Fix unpredictable BigDecimal constructors.
-    protected final Supplier<BigDecimal> nextTradeBsqPrice = () -> {
-        // TODO Fix unpredictable BigDecimal constructor.
-        BigDecimal nextBsqPriceDeviation = new BigDecimal(RANDOM.nextDouble() * MAX_BSQ_PRICE_DEVIATION_SIZE.doubleValue(),
-                new MathContext(2, HALF_UP));
-        BigDecimal nextTradeBsqPrice = RANDOM.nextBoolean()
-                ? this.getTargetBsqPrice().add(nextBsqPriceDeviation)
-                : this.getTargetBsqPrice().subtract(nextBsqPriceDeviation);
-        log.info("Calculated next trade's BSQ price: {} BTC using target price {} and max deviation {}.",
-                nextTradeBsqPrice.toPlainString(),
-                this.getTargetBsqPrice(),
-                MAX_BSQ_PRICE_DEVIATION_SIZE.toPlainString());
-        return nextTradeBsqPrice;
+    // We use the same random BSQ price in a trade cycle (1 buy and 1 sell).
+    // This price queue has a max of 2 prices.  When it's empty, we add two identical
+    // prices, then remove & use them until queue is exhausted, rinse and repeat for
+    // each trade cycle.
+    protected static final Queue<BigDecimal> PSEUDO_FIXED_TRADE_PRICE_QUEUE = new ConcurrentLinkedQueue<>();
+
+    protected final Supplier<BigDecimal> nextPseudoFixedTradeBsqPrice = () -> {
+        if (PSEUDO_FIXED_TRADE_PRICE_QUEUE.isEmpty()) {
+            BigDecimal nextBsqPriceDeviation = randomPercent.get().multiply(MAX_BSQ_PRICE_DEVIATION_SIZE);
+            BigDecimal fixedTradePrice = RANDOM.nextBoolean()
+                    ? this.getTargetBsqPrice().add(nextBsqPriceDeviation)
+                    : this.getTargetBsqPrice().subtract(nextBsqPriceDeviation);
+            log.info("Calculated next trade's pseudo fixed BSQ price: {} BTC using target price {} and max deviation {}.",
+                    fixedTradePrice.toPlainString(),
+                    this.getTargetBsqPrice(),
+                    MAX_BSQ_PRICE_DEVIATION_SIZE.toPlainString());
+            PSEUDO_FIXED_TRADE_PRICE_QUEUE.add(fixedTradePrice);
+            PSEUDO_FIXED_TRADE_PRICE_QUEUE.add(fixedTradePrice);
+        }
+        return PSEUDO_FIXED_TRADE_PRICE_QUEUE.remove();
     };
 
-    protected final Function<BigDecimal, Double> calculatedMargin = (targetSpread) -> {
-        BigDecimal margin = targetSpread.divide(new BigDecimal(2), HALF_UP);
-        // TODO Fix unpredictable BigDecimal constructor.
-        return new BigDecimal(margin.doubleValue(), new MathContext(3, HALF_UP))
-                .doubleValue();
-    };
-
-    // TODO Fix unpredictable BigDecimal constructors.
     protected final Function<Direction, BigDecimal> calculateNextTradeMarginBasedPrice = (direction) -> {
-        // TODO Fix unpredictable BigDecimal constructor.
-        BigDecimal marginAsPercent = new BigDecimal(this.getPriceMargin());
-        BigDecimal marginAsDecimal = marginAsPercent.multiply(MARGIN_PERCENT_MULTIPLICAND);
-        BigDecimal basePrice = nextTradeBsqPrice.get();
-        BigDecimal delta = basePrice.multiply(marginAsDecimal);
-        // TODO Fix unpredictable BigDecimal constructor.
+        BigDecimal marginAsDecimal = this.getPriceMargin().multiply(PERCENT_MULTIPLICAND);
+        BigDecimal basePrice = nextPseudoFixedTradeBsqPrice.get();
+        BigDecimal marginDifference = basePrice.multiply(marginAsDecimal);
         BigDecimal nextMarginPrice = direction.equals(BUY)
-                ? new BigDecimal(basePrice.subtract(delta).doubleValue(), new MathContext(5, HALF_UP))
-                : new BigDecimal(basePrice.add(delta).doubleValue(), new MathContext(5, HALF_UP));
-        log.info("Calculated next {} trade's BSQ margin based price: {} BTC based on adjusted base price {} {} {}% margin.",
+                ? basePrice.subtract(marginDifference).round(new MathContext(4, HALF_UP))
+                : basePrice.add(marginDifference).round(new MathContext(4, HALF_UP));
+        log.info("Calculated next {} trade's BSQ margin based price: {} BTC based on pseudo base price {} {} {}% margin.",
                 direction.name(),
                 nextMarginPrice.toPlainString(),
                 basePrice.toPlainString(),
@@ -135,15 +137,14 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
     protected final Function<Double, Double> roundedSecurityDeposit = (securityDepositAsPercent) ->
             new BigDecimal(securityDepositAsPercent).round(new MathContext(3, HALF_UP)).doubleValue();
 
-
     public static void main(String[] args) {
         BigDecimal targetBtcAmount = new BigDecimal("0.1");
         BigDecimal targetPrice = new BigDecimal("0.00005");
         BigDecimal targetSpread = new BigDecimal("10.00");
 
-        Supplier<BigDecimal> randomNumber = () ->
+        Supplier<BigDecimal> randomPercent = () ->
                 new BigDecimal(Double.toString(RANDOM.nextDouble())).round(new MathContext(2, HALF_UP));
-        BigDecimal nextBtcAmountDeviation = randomNumber.get().multiply(MAX_BTC_AMOUNT_DEVIATION_SIZE);
+        BigDecimal nextBtcAmountDeviation = randomPercent.get().multiply(MAX_BTC_AMOUNT_DEVIATION_SIZE);
         BigDecimal nextTradeBtcAmount = RANDOM.nextBoolean()
                 ? targetBtcAmount.subtract(nextBtcAmountDeviation)
                 : targetBtcAmount.add(nextBtcAmountDeviation);
@@ -154,7 +155,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                 targetBtcAmount,
                 MAX_BTC_AMOUNT_DEVIATION_SIZE);
 
-        BigDecimal nextBsqPriceDeviation = randomNumber.get().multiply(MAX_BSQ_PRICE_DEVIATION_SIZE);
+        BigDecimal nextBsqPriceDeviation = randomPercent.get().multiply(MAX_BSQ_PRICE_DEVIATION_SIZE);
         BigDecimal nextTradeBsqPrice = RANDOM.nextBoolean()
                 ? targetPrice.add(nextBsqPriceDeviation)
                 : targetPrice.subtract(nextBsqPriceDeviation);
@@ -163,17 +164,16 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                 targetPrice,
                 MAX_BSQ_PRICE_DEVIATION_SIZE.toPlainString());
 
-
         BigDecimal marginAsPercent = targetSpread.divide(new BigDecimal(2), HALF_UP);
-        BigDecimal marginAsDecimal = marginAsPercent.multiply(MARGIN_PERCENT_MULTIPLICAND);
+        BigDecimal marginAsDecimal = marginAsPercent.multiply(PERCENT_MULTIPLICAND);
         BigDecimal delta = nextTradeBsqPrice.multiply(marginAsDecimal).round(new MathContext(3, HALF_UP));
         BigDecimal nextBuyMarginPrice = nextTradeBsqPrice.subtract(delta);
         BigDecimal nextSellMarginPrice = nextTradeBsqPrice.add(delta);
-        log.info("Calculated next BUY  BSQ margin based price: {} BTC based on adjusted target price {} and {}% margin.",
+        log.info("Calculated next BUY  BSQ margin based price: {} BTC based on pseudo target price {} and {}% margin.",
                 nextBuyMarginPrice.toPlainString(),
                 nextTradeBsqPrice,
                 marginAsPercent);
-        log.info("Calculated next SELL BSQ margin based price: {} BTC based on adjusted target price {} and {}% margin.",
+        log.info("Calculated next SELL BSQ margin based price: {} BTC based on pseudo target price {} and {}% margin.",
                 nextSellMarginPrice.toPlainString(),
                 nextTradeBsqPrice,
                 marginAsPercent);
@@ -240,7 +240,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                 var isBsqOffer = paymentAccount.getSelectedTradeCurrency().getCode().equals(BSQ);
                 OfferInfo offer;
                 if (isBsqOffer) {
-                    var priceAsString = calculateNextTradeMarginBasedPrice.apply(BUY).toString();
+                    var priceAsString = calculateNextTradeMarginBasedPrice.apply(BUY).toPlainString();
                     offer = botClient.createOfferAtFixedPrice(paymentAccount,
                             SELL.name(),  // This is the Buy BSQ (Sell BTC) bot.
                             currencyCode,
@@ -256,7 +256,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                             currencyCode,
                             amount,
                             amount,
-                            this.getPriceMargin(),
+                            this.getPriceMargin().doubleValue(),
                             this.getSecurityDepositAsPercent(),
                             this.getTradingFeeCurrencyCode());
                     log.info("Created BUY / {} offer at {}% below current market price of {}:\n{}",
@@ -289,7 +289,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                 var isBsqOffer = paymentAccount.getSelectedTradeCurrency().getCode().equals(BSQ);
                 OfferInfo offer;
                 if (isBsqOffer) {
-                    var priceAsString = calculateNextTradeMarginBasedPrice.apply(SELL).toString();
+                    var priceAsString = calculateNextTradeMarginBasedPrice.apply(SELL).toPlainString();
                     offer = botClient.createOfferAtFixedPrice(paymentAccount,
                             BUY.name(),  // This is the Sell BSQ (Buy BTC) bot.
                             currencyCode,
@@ -305,7 +305,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                             currencyCode,
                             amount,
                             amount,
-                            this.getPriceMargin(),
+                            this.getPriceMargin().doubleValue(),
                             this.getSecurityDepositAsPercent(),
                             this.getTradingFeeCurrencyCode());
                     log.info("Created SELL / {} offer at {}% above current market price of {}:\n{}",
