@@ -43,8 +43,6 @@ import bisq.core.util.FormattingUtils;
 import bisq.core.util.coin.BsqFormatter;
 import bisq.core.util.coin.CoinFormatter;
 
-import bisq.network.p2p.mailbox.MailboxMessageService;
-
 import bisq.common.Timer;
 import bisq.common.UserThread;
 import bisq.common.handlers.ResultHandler;
@@ -129,8 +127,7 @@ class CoreWalletsService {
                               BtcWalletService btcWalletService,
                               @Named(FormattingUtils.BTC_FORMATTER_KEY) CoinFormatter btcFormatter,
                               FeeService feeService,
-                              Preferences preferences,
-                              MailboxMessageService mailboxMessageService) {
+                              Preferences preferences) {
         this.appStartupState = appStartupState;
         this.coreContext = coreContext;
         this.balances = balances;
