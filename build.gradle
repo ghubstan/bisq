@@ -92,6 +92,7 @@ configure(subprojects) {
 
 
 configure([project(':cli'),
+           project(':bot'),
            project(':daemon'),
            project(':desktop'),
            project(':monitor'),
@@ -344,6 +345,46 @@ configure(project(':cli')) {
 
     dependencies {
         compile project(':proto')
+        implementation "net.sf.jopt-simple:jopt-simple:$joptVersion"
+        implementation "com.google.guava:guava:$guavaVersion"
+        implementation "com.google.protobuf:protobuf-java:$protobufVersion"
+        implementation("io.grpc:grpc-core:$grpcVersion") {
+            exclude(module: 'guava')
+            exclude(module: 'animal-sniffer-annotations')
+        }
+        implementation("io.grpc:grpc-stub:$grpcVersion") {
+            exclude(module: 'guava')
+            exclude(module: 'animal-sniffer-annotations')
+        }
+        runtimeOnly("io.grpc:grpc-netty-shaded:$grpcVersion") {
+            exclude(module: 'guava')
+            exclude(module: 'animal-sniffer-annotations')
+        }
+        implementation "org.slf4j:slf4j-api:$slf4jVersion"
+        implementation "ch.qos.logback:logback-core:$logbackVersion"
+        implementation "ch.qos.logback:logback-classic:$logbackVersion"
+        compileOnly "org.projectlombok:lombok:$lombokVersion"
+        annotationProcessor "org.projectlombok:lombok:$lombokVersion"
+
+        testImplementation "org.junit.jupiter:junit-jupiter-api:$jupiterVersion"
+        testImplementation "org.junit.jupiter:junit-jupiter-params:$jupiterVersion"
+        testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$jupiterVersion")
+        testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
+        testCompileOnly "org.projectlombok:lombok:$lombokVersion"
+        testRuntime "javax.annotation:javax.annotation-api:$javaxAnnotationVersion"
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+}
+
+configure(project(':bot')) {
+    mainClassName = 'bisq.bot.BotMain'
+
+    dependencies {
+        compile project(':proto')
+        compile project(':cli')
         implementation "net.sf.jopt-simple:jopt-simple:$joptVersion"
         implementation "com.google.guava:guava:$guavaVersion"
         implementation "com.google.protobuf:protobuf-java:$protobufVersion"
@@ -681,6 +722,7 @@ configure(project(':apitest')) {
         compile project(':desktop')
         compile project(':daemon')
         compile project(':cli')
+        compile project(':bot')
         implementation "net.sf.jopt-simple:jopt-simple:$joptVersion"
         implementation "com.google.guava:guava:$guavaVersion"
         implementation "com.google.protobuf:protobuf-java:$protobufVersion"
