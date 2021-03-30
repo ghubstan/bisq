@@ -1,0 +1,18 @@
+createcryptopaymentacct
+
+NAME
+----
+createcryptopaymentacct - create a cryptocurrency payment account
+
+SYNOPSIS
+--------
+createcryptopaymentacct
+		--TODO
+
+DESCRIPTION
+-----------
+TODO
+
+EXAMPLES
+--------
+TODO
