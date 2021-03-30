@@ -70,10 +70,12 @@ public abstract class AbstractOfferTest extends MethodTest {
     public static void createBsqPaymentAccounts() {
         alicesBsqAcct = aliceClient.createCryptoCurrencyPaymentAccount("Alice's BSQ Account",
                 BSQ,
-                aliceClient.getUnusedBsqAddress());
+                aliceClient.getUnusedBsqAddress(),
+                false);
         bobsBsqAcct = bobClient.createCryptoCurrencyPaymentAccount("Bob's BSQ Account",
                 BSQ,
-                bobClient.getUnusedBsqAddress());
+                bobClient.getUnusedBsqAddress(),
+                false);
     }
 
     protected double getScaledOfferPrice(double offerPrice, String currencyCode) {

@@ -527,9 +527,11 @@ public class CliMain {
                     var accountName = opts.getAccountName();
                     var currencyCode = opts.getCurrencyCode();
                     var address = opts.getAddress();
+                    var isTradeInstant = opts.getIsTradeInstant();
                     var paymentAccount = client.createCryptoCurrencyPaymentAccount(accountName,
                             currencyCode,
-                            address);
+                            address,
+                            isTradeInstant);
                     out.println("payment account saved");
                     out.println(formatPaymentAcctTbl(singletonList(paymentAccount)));
                     return;

@@ -110,6 +110,13 @@ abstract class BaseMarketMakerBot {
 
     abstract void run();
 
+    protected final PaymentAccount getOrCreateSenderPaymentAccount() {
+        var senderAccounts = botClient.getSenderBsqPaymentAccounts();
+        return senderAccounts.isEmpty()
+                ? botClient.createSenderBsqPaymentAccount()
+                : senderAccounts.get(0);
+    }
+
     protected final PaymentAccount getNextReceiverPaymentAccount() {
         if (receiverPaymentAccounts.isEmpty()) {
             log.warn("You have not set up any BSQ payment accounts."
@@ -218,12 +225,5 @@ abstract class BaseMarketMakerBot {
         isSellBotShutdown.set(true);
         setShutdownCalled(true);
         executor.shutdownNow();
-    }
-
-    private PaymentAccount getOrCreateSenderPaymentAccount() {
-        var senderAccounts = botClient.getSenderBsqPaymentAccounts();
-        return senderAccounts.isEmpty()
-                ? botClient.createSenderBsqPaymentAccount()
-                : senderAccounts.get(0);
     }
 }

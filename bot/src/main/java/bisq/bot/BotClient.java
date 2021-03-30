@@ -595,27 +595,27 @@ public class BotClient {
 
     /**
      * TODO
-     * @return
+     * @return PaymentAccount
      */
     public PaymentAccount createReceiverBsqPaymentAccount() {
         String unusedBsqAddress = grpcClient.getUnusedBsqAddress();
         String accountName = "Receiver BSQ Account " + unusedBsqAddress.substring(0, 8) + " ...";
-        return grpcClient.createCryptoCurrencyPaymentAccount(accountName, BSQ, unusedBsqAddress);
+        return grpcClient.createCryptoCurrencyPaymentAccount(accountName, BSQ, unusedBsqAddress, true);
     }
 
     public PaymentAccount createSenderBsqPaymentAccount() {
         String unusedBsqAddress = grpcClient.getUnusedBsqAddress();
         String accountName = "Sender BSQ Account " + unusedBsqAddress.substring(0, 8) + " ...";
-        return grpcClient.createCryptoCurrencyPaymentAccount(accountName, BSQ, unusedBsqAddress);
+        return grpcClient.createCryptoCurrencyPaymentAccount(accountName, BSQ, unusedBsqAddress, true);
     }
 
     /**
      * TODO
-     * @return
+     * @return List<PaymentAccount>
      */
     public List<PaymentAccount> getReceiverBsqPaymentAccounts() {
         return getPaymentAccounts().stream()
-                .filter(a -> a.getPaymentAccountPayload().hasCryptoCurrencyAccountPayload())
+                .filter(a -> a.getPaymentAccountPayload().hasInstantCryptoCurrencyAccountPayload())
                 .filter(a -> a.getSelectedTradeCurrency().getCode().equals(BSQ))
                 .filter(a -> a.getAccountName().startsWith("Receiver BSQ Account"))
                 .collect(Collectors.toList());
@@ -623,11 +623,11 @@ public class BotClient {
 
     /**
      * TODO
-     * @return
+     * @return List<PaymentAccount>
      */
     public List<PaymentAccount> getSenderBsqPaymentAccounts() {
         return getPaymentAccounts().stream()
-                .filter(a -> a.getPaymentAccountPayload().hasCryptoCurrencyAccountPayload())
+                .filter(a -> a.getPaymentAccountPayload().hasInstantCryptoCurrencyAccountPayload())
                 .filter(a -> a.getSelectedTradeCurrency().getCode().equals(BSQ))
                 .filter(a -> a.getAccountName().startsWith("Sender BSQ Account"))
                 .collect(Collectors.toList());
