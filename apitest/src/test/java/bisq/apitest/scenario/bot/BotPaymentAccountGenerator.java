@@ -17,6 +17,11 @@ import lombok.extern.slf4j.Slf4j;
 import static bisq.core.payment.payload.PaymentMethod.CLEAR_X_CHANGE_ID;
 import static bisq.core.payment.payload.PaymentMethod.F2F_ID;
 
+
+
+import bisq.bot.BotClient;
+import bisq.bot.PaymentAccountNotFoundException;
+
 @Slf4j
 public class BotPaymentAccountGenerator {
 

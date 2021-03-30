@@ -33,7 +33,7 @@ import static bisq.apitest.config.BisqAppConfig.alicedaemon;
 import static bisq.apitest.config.BisqAppConfig.arbdaemon;
 import static bisq.apitest.config.BisqAppConfig.bobdaemon;
 import static bisq.apitest.config.BisqAppConfig.seednode;
-import static bisq.apitest.scenario.bot.shutdown.ManualShutdown.startShutdownTimer;
+import static bisq.bot.shutdown.ManualShutdown.startShutdownTimer;
 import static org.junit.jupiter.api.Assertions.fail;
 
 
@@ -41,10 +41,10 @@ import static org.junit.jupiter.api.Assertions.fail;
 import bisq.apitest.config.ApiTestConfig;
 import bisq.apitest.method.BitcoinCliHelper;
 import bisq.apitest.scenario.bot.AbstractBotTest;
-import bisq.apitest.scenario.bot.BotClient;
 import bisq.apitest.scenario.bot.RobotBob;
-import bisq.apitest.scenario.bot.script.BashScriptGenerator;
-import bisq.apitest.scenario.bot.shutdown.ManualBotShutdownException;
+import bisq.bot.BotClient;
+import bisq.bot.script.BashScriptGenerator;
+import bisq.bot.shutdown.ManualBotShutdownException;
 
 // The test case is enabled if AbstractBotTest#botScriptExists() returns true.
 @EnabledIf("botScriptExists")
@@ -76,14 +76,15 @@ public class ScriptedBotTest extends AbstractBotTest {
             log.warn("Don't forget to register dispute agents before trying to trade with me.");
         }
 
-        botClient = new BotClient(bobClient);
+        makerBotClient = new BotClient(bobClient);
+        takerBotClient = new BotClient(aliceClient);
     }
 
     @BeforeEach
     public void initRobotBob() {
         try {
             BashScriptGenerator bashScriptGenerator = getBashScriptGenerator();
-            robotBob = new RobotBob(botClient, botScript, bitcoinCli, bashScriptGenerator);
+            robotBob = new RobotBob(makerBotClient, botScript, bitcoinCli, bashScriptGenerator);
         } catch (Exception ex) {
             fail(ex);
         }

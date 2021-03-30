@@ -37,9 +37,15 @@ import static bisq.cli.CurrencyFormat.formatMarketPrice;
 import static bisq.cli.CurrencyFormat.formatSatoshis;
 import static bisq.common.util.MathUtils.scaleDownByPowerOf10;
 import static bisq.core.btc.wallet.Restrictions.getDefaultBuyerSecurityDepositAsPercent;
+import static bisq.core.offer.OfferPayload.Direction.BUY;
+import static bisq.core.offer.OfferPayload.Direction.SELL;
 import static bisq.core.payment.payload.PaymentMethod.F2F_ID;
 import static java.lang.String.format;
 import static java.math.RoundingMode.HALF_UP;
+
+
+
+import bisq.bot.BotClient;
 
 @Slf4j
 public class RandomOffer {
@@ -108,7 +114,7 @@ public class RandomOffer {
     public RandomOffer(BotClient botClient, PaymentAccount paymentAccount) {
         this.botClient = botClient;
         this.paymentAccount = paymentAccount;
-        this.direction = RANDOM.nextBoolean() ? "BUY" : "SELL";
+        this.direction = RANDOM.nextBoolean() ? BUY.name() : SELL.name();
         this.currencyCode = Objects.requireNonNull(paymentAccount.getSelectedTradeCurrency()).getCode();
         this.amount = nextAmount.get();
         this.minAmount = nextMinAmount.get();
@@ -154,7 +160,7 @@ public class RandomOffer {
         double currentMarketPrice = botClient.getCurrentBTCMarketPrice(currencyCode);
         // Calculate a fixed price based on the random mkt price margin, even if we don't use it.
         double differenceFromMarketPrice = currentMarketPrice * scaleDownByPowerOf10(priceMargin, 2);
-        double fixedOfferPriceAsDouble = direction.equals("BUY")
+        double fixedOfferPriceAsDouble = direction.equals(BUY.name())
                 ? currentMarketPrice - differenceFromMarketPrice
                 : currentMarketPrice + differenceFromMarketPrice;
         this.fixedOfferPrice = FIXED_PRICE_FMT.format(fixedOfferPriceAsDouble);
