@@ -268,7 +268,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                 }
             }
         }
-        throw new CreateOfferException(format("%s could not create offer after {} attempts.",
+        throw new CreateOfferException(format("%s could not create offer after %s attempts.",
                 botDescription,
                 attempts));
     };
@@ -316,7 +316,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                 }
             }
         }
-        throw new CreateOfferException(format("%s could not create offer after {} attempts.",
+        throw new CreateOfferException(format("%s could not create offer after %s attempts.",
                 botDescription,
                 attempts));
     };
