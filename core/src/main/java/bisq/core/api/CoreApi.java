@@ -210,6 +210,14 @@ public class CoreApi {
         return paymentAccountsService.getPaymentAccountFormAsString(paymentMethodId);
     }
 
+    public PaymentAccount createCryptoCurrencyPaymentAccount(String accountName, String currencyCode, String address) {
+        return paymentAccountsService.createCryptoCurrencyPaymentAccount(accountName, currencyCode, address);
+    }
+
+    public List<PaymentMethod> getCryptoCurrencyPaymentMethods() {
+        return paymentAccountsService.getCryptoCurrencyPaymentMethods();
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Prices
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -296,6 +304,10 @@ public class CoreApi {
                         String memo,
                         FutureCallback<Transaction> callback) {
         walletsService.sendBtc(address, amount, txFeeRate, memo, callback);
+    }
+
+    public boolean verifyBsqSentToAddress(String address, String amount) {
+        return walletsService.verifyBsqSentToAddress(address, amount);
     }
 
     public void getTxFeeRate(ResultHandler resultHandler) {
