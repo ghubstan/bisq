@@ -191,9 +191,7 @@ abstract class BaseMarketMakerBot {
     }
 
     protected void logFailedTradeError(Logger log, String botName, Exception exception) {
-        log.error("{} could not complete trade {}.",
-                botName,
-                exception);
+        log.error("{} could not complete trade.", botName, exception);
     }
 
     protected void logBotCompletion(Logger log, String botName, BotClient botClient) {
