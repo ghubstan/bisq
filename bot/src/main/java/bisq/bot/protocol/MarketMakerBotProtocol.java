@@ -75,6 +75,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
     protected final int maxCreateOfferFailureLimit;
 
     protected final Supplier<Long> nextTradeBtcAmount = () -> {
+        // TODO Fix unpredictable BigDecimal constructor.
         BigDecimal nextBtcAmountDeviation = new BigDecimal(RANDOM.nextDouble() * MAX_BTC_AMOUNT_DEVIATION_SIZE.doubleValue(),
                 new MathContext(2, HALF_UP));
         BigDecimal nextTradeBtcAmount = RANDOM.nextBoolean()
@@ -89,7 +90,9 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
         return amountInSatoshis;
     };
 
+    // TODO Fix unpredictable BigDecimal constructors.
     protected final Supplier<BigDecimal> nextTradeBsqPrice = () -> {
+        // TODO Fix unpredictable BigDecimal constructor.
         BigDecimal nextBsqPriceDeviation = new BigDecimal(RANDOM.nextDouble() * MAX_BSQ_PRICE_DEVIATION_SIZE.doubleValue(),
                 new MathContext(2, HALF_UP));
         BigDecimal nextTradeBsqPrice = RANDOM.nextBoolean()
@@ -103,16 +106,20 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
     };
 
     protected final Function<BigDecimal, Double> calculatedMargin = (targetSpread) -> {
-        BigDecimal margin = targetSpread.divide(new BigDecimal(2));
+        BigDecimal margin = targetSpread.divide(new BigDecimal(2), HALF_UP);
+        // TODO Fix unpredictable BigDecimal constructor.
         return new BigDecimal(margin.doubleValue(), new MathContext(3, HALF_UP))
                 .doubleValue();
     };
 
+    // TODO Fix unpredictable BigDecimal constructors.
     protected final Function<Direction, BigDecimal> calculateNextTradeMarginBasedPrice = (direction) -> {
+        // TODO Fix unpredictable BigDecimal constructor.
         BigDecimal marginAsPercent = new BigDecimal(this.getPriceMargin());
         BigDecimal marginAsDecimal = marginAsPercent.multiply(MARGIN_PERCENT_MULTIPLICAND);
         BigDecimal basePrice = nextTradeBsqPrice.get();
         BigDecimal delta = basePrice.multiply(marginAsDecimal);
+        // TODO Fix unpredictable BigDecimal constructor.
         BigDecimal nextMarginPrice = direction.equals(BUY)
                 ? new BigDecimal(basePrice.subtract(delta).doubleValue(), new MathContext(5, HALF_UP))
                 : new BigDecimal(basePrice.add(delta).doubleValue(), new MathContext(5, HALF_UP));
@@ -130,12 +137,13 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
 
 
     public static void main(String[] args) {
-        BigDecimal targetBtcAmount = new BigDecimal("0.05");
-        BigDecimal targetPrice = new BigDecimal("0.00010");
+        BigDecimal targetBtcAmount = new BigDecimal("0.1");
+        BigDecimal targetPrice = new BigDecimal("0.00005");
         BigDecimal targetSpread = new BigDecimal("10.00");
 
-        BigDecimal nextBtcAmountDeviation = new BigDecimal(RANDOM.nextDouble() * MAX_BTC_AMOUNT_DEVIATION_SIZE.doubleValue(),
-                new MathContext(2, HALF_UP));
+        Supplier<BigDecimal> randomNumber = () ->
+                new BigDecimal(Double.toString(RANDOM.nextDouble())).round(new MathContext(2, HALF_UP));
+        BigDecimal nextBtcAmountDeviation = randomNumber.get().multiply(MAX_BTC_AMOUNT_DEVIATION_SIZE);
         BigDecimal nextTradeBtcAmount = RANDOM.nextBoolean()
                 ? targetBtcAmount.subtract(nextBtcAmountDeviation)
                 : targetBtcAmount.add(nextBtcAmountDeviation);
@@ -146,8 +154,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                 targetBtcAmount,
                 MAX_BTC_AMOUNT_DEVIATION_SIZE);
 
-        BigDecimal nextBsqPriceDeviation = new BigDecimal(RANDOM.nextDouble() * MAX_BSQ_PRICE_DEVIATION_SIZE.doubleValue(),
-                new MathContext(2, HALF_UP));
+        BigDecimal nextBsqPriceDeviation = randomNumber.get().multiply(MAX_BSQ_PRICE_DEVIATION_SIZE);
         BigDecimal nextTradeBsqPrice = RANDOM.nextBoolean()
                 ? targetPrice.add(nextBsqPriceDeviation)
                 : targetPrice.subtract(nextBsqPriceDeviation);
@@ -157,20 +164,19 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                 MAX_BSQ_PRICE_DEVIATION_SIZE.toPlainString());
 
 
-        BigDecimal margin = targetSpread.divide(new BigDecimal(2));
-        double marginAsDouble = new BigDecimal(margin.doubleValue(), new MathContext(3, HALF_UP)).doubleValue();
-        BigDecimal marginAsPercent = new BigDecimal(marginAsDouble);
+        BigDecimal marginAsPercent = targetSpread.divide(new BigDecimal(2), HALF_UP);
         BigDecimal marginAsDecimal = marginAsPercent.multiply(MARGIN_PERCENT_MULTIPLICAND);
-        BigDecimal delta = nextTradeBsqPrice.multiply(marginAsDecimal);
-        Direction direction = RANDOM.nextBoolean() ? BUY : SELL;
-        BigDecimal nextMarginPrice = direction.equals(BUY)
-                ? new BigDecimal(nextTradeBsqPrice.subtract(delta).doubleValue(), new MathContext(5, HALF_UP))
-                : new BigDecimal(nextTradeBsqPrice.add(delta).doubleValue(), new MathContext(5, HALF_UP));
-        log.info("Calculated next {} trade's BSQ margin based price: {} BTC based on adjusted target price {} and {}% margin.",
-                direction.name(),
-                nextMarginPrice.toPlainString(),
+        BigDecimal delta = nextTradeBsqPrice.multiply(marginAsDecimal).round(new MathContext(3, HALF_UP));
+        BigDecimal nextBuyMarginPrice = nextTradeBsqPrice.subtract(delta);
+        BigDecimal nextSellMarginPrice = nextTradeBsqPrice.add(delta);
+        log.info("Calculated next BUY  BSQ margin based price: {} BTC based on adjusted target price {} and {}% margin.",
+                nextBuyMarginPrice.toPlainString(),
                 nextTradeBsqPrice,
-                marginAsDouble);
+                marginAsPercent);
+        log.info("Calculated next SELL BSQ margin based price: {} BTC based on adjusted target price {} and {}% margin.",
+                nextSellMarginPrice.toPlainString(),
+                nextTradeBsqPrice,
+                marginAsPercent);
     }
 
 
@@ -264,7 +270,8 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                 log.error("Failed to create BUY offer after attempt #{}.", attempts, ex);
                 try {
                     SECONDS.sleep(30);
-                } catch (InterruptedException interruptedException) {
+                } catch (InterruptedException ignored) {
+                    // empty
                 }
             }
         }
@@ -312,7 +319,8 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                 log.error("Failed to create SELL offer after attempt #{}.", attempts, ex);
                 try {
                     SECONDS.sleep(30);
-                } catch (InterruptedException interruptedException) {
+                } catch (InterruptedException ignored) {
+                    // empty
                 }
             }
         }

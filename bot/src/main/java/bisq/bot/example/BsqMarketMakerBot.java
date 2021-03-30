@@ -102,9 +102,12 @@ public class BsqMarketMakerBot extends BaseMarketMakerBot {
 
             startShutdownTimer();
 
-            startBot(buyMakerBot,
-                    botClient,
-                    BUYER_BOT_NAME);
+            // Do not start a bot if already shutting down.
+            if (!isShutdownCalled()) {
+                startBot(buyMakerBot,
+                        botClient,
+                        BUYER_BOT_NAME);
+            }
 
             rest(15);
 
@@ -115,6 +118,8 @@ public class BsqMarketMakerBot extends BaseMarketMakerBot {
                         SELLER_BOT_NAME);
             }
 
+            // TODO Optionally auto-shutdown after max cycles are complete.
+            //  See boolean stayAlive usage.
             waitForManualShutdown();
 
         } catch (ManualBotShutdownException ex) {
