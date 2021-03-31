@@ -240,17 +240,6 @@ public abstract class BotProtocol {
                     log.info("Buyer has started payment for trade: {}\n{}",
                             t.getTradeId(),
                             TradeFormat.format(t));
-
-                    /*
-                    TODO Test before deleting this comment.  It is the reason waitForBsqPayment is being called 2x.
-                    var isBsqOffer = this.getPaymentAccount().getSelectedTradeCurrency().getCode().equals(BSQ);
-                    if (isBsqOffer) {
-                        // Other side claims to have sent BSQ payment.
-                        // Wait for it to show up.
-                        waitForBsqPayment.accept(trade);
-                    }
-                     */
-
                     return t;
                 }
             } catch (Exception ex) {
