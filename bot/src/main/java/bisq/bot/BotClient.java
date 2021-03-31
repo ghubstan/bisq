@@ -127,15 +127,6 @@ public class BotClient {
      * @param trade
      */
     public void makeBsqPayment(TradeInfo trade) {
-        makeBsqPayment(trade, "");
-    }
-
-    /**
-     * TODO
-     * @param trade
-     * @param memo
-     */
-    public void makeBsqPayment(TradeInfo trade, String memo) {
         var contract = trade.getContract();
         var bsqSats = trade.getOffer().getVolume();
         var sendAmountAsString = formatBsqAmount(bsqSats);
@@ -146,7 +137,7 @@ public class BotClient {
                 sendAmountAsString,
                 address,
                 trade.getTradeId());
-        sendBsq(address, sendAmountAsString, memo);
+        sendBsq(address, sendAmountAsString);
     }
 
     /**
@@ -597,12 +588,25 @@ public class BotClient {
      * TODO
      * @return PaymentAccount
      */
+    public PaymentAccount createCryptoCurrencyPaymentAccount(String accountName, boolean tradeInstant) {
+        String unusedBsqAddress = grpcClient.getUnusedBsqAddress();
+        return grpcClient.createCryptoCurrencyPaymentAccount(accountName, BSQ, unusedBsqAddress, tradeInstant);
+    }
+
+    /**
+     * TODO
+     * @return PaymentAccount
+     */
     public PaymentAccount createReceiverBsqPaymentAccount() {
         String unusedBsqAddress = grpcClient.getUnusedBsqAddress();
         String accountName = "Receiver BSQ Account " + unusedBsqAddress.substring(0, 8) + " ...";
         return grpcClient.createCryptoCurrencyPaymentAccount(accountName, BSQ, unusedBsqAddress, true);
     }
 
+    /**
+     * TODO
+     * @return
+     */
     public PaymentAccount createSenderBsqPaymentAccount() {
         String unusedBsqAddress = grpcClient.getUnusedBsqAddress();
         String accountName = "Sender BSQ Account " + unusedBsqAddress.substring(0, 8) + " ...";
