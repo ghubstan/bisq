@@ -202,7 +202,7 @@ public abstract class BotProtocol {
             try {
                 boolean isAmountReceived = this.getBotClient().verifyBsqSentToAddress(address, receiveAmountAsString);
                 if (isAmountReceived) {
-                    log.info("{} has received payment of {} BSQ to address {} for trade with id {}.",
+                    log.warn("{} has received payment of {} BSQ to address {} for trade with id {}.",
                             this.getBotDescription(),
                             receiveAmountAsString,
                             address,
@@ -241,12 +241,15 @@ public abstract class BotProtocol {
                             t.getTradeId(),
                             TradeFormat.format(t));
 
+                    /*
+                    TODO Test before deleting this comment.  It is the reason waitForBsqPayment is being called 2x.
                     var isBsqOffer = this.getPaymentAccount().getSelectedTradeCurrency().getCode().equals(BSQ);
                     if (isBsqOffer) {
                         // Other side claims to have sent BSQ payment.
                         // Wait for it to show up.
                         waitForBsqPayment.accept(trade);
                     }
+                     */
 
                     return t;
                 }
@@ -327,6 +330,7 @@ public abstract class BotProtocol {
     };
 
     protected final Function<TradeInfo, TradeInfo> sendPaymentReceivedMessage = (trade) -> {
+        // TODO refactor this, move to top where functions are composed.
         var isBsqOffer = this.getPaymentAccount().getSelectedTradeCurrency().getCode().equals(BSQ);
         if (isBsqOffer) {
             waitForBsqPayment.accept(trade);

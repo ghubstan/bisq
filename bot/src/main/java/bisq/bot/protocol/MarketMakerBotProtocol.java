@@ -371,7 +371,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
     protected Optional<TradeInfo> getNewTrade(String offerId) {
         try {
             var trade = botClient.getTrade(offerId);
-            log.info("Offer {} taken with payment account {}, new trade:\n{}",
+            log.info("Offer {} created with payment account {} has been taken. New trade:\n{}",
                     offerId,
                     paymentAccount.getId(),
                     TradeFormat.format(trade));
