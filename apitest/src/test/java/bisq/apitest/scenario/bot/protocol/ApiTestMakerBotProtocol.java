@@ -86,7 +86,7 @@ public class ApiTestMakerBotProtocol extends ApiTestBotProtocol implements Maker
                     if (trade.isPresent())
                         return trade.get();
                     else
-                        sleep(randomDelay.get());
+                        sleep(shortRandomDelayInSeconds.get());
                 } catch (Exception ex) {
                     throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex), ex);
                 }

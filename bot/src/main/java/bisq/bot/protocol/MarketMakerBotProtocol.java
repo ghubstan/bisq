@@ -249,7 +249,6 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                             priceAsString,
                             this.getSecurityDepositAsPercent(),
                             this.getTradingFeeCurrencyCode());
-
                 } else {
                     offer = botClient.createOfferAtMarketBasedPrice(paymentAccount,
                             BUY.name(),
@@ -264,6 +263,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                             this.getPriceMargin(),
                             botClient.getCurrentBTCMarketPriceAsString(currencyCode),
                             formatOfferTable(singletonList(offer), currencyCode));
+                    log.info("Payment account used to create offer: {}", paymentAccount.getId());
                 }
                 return offer;
             } catch (Exception ex) {
@@ -298,7 +298,6 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                             priceAsString,
                             this.getSecurityDepositAsPercent(),
                             this.getTradingFeeCurrencyCode());
-
                 } else {
                     offer = botClient.createOfferAtMarketBasedPrice(paymentAccount,
                             SELL.name(),
@@ -313,6 +312,7 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
                             this.getPriceMargin(),
                             botClient.getCurrentBTCMarketPriceAsString(currencyCode),
                             formatOfferTable(singletonList(offer), currencyCode));
+                    log.info("Payment account used to create offer: {}", paymentAccount.getId());
                 }
                 return offer;
             } catch (Exception ex) {
@@ -371,11 +371,13 @@ public class MarketMakerBotProtocol extends BotProtocol implements MakerBotProto
     protected Optional<TradeInfo> getNewTrade(String offerId) {
         try {
             var trade = botClient.getTrade(offerId);
-            log.info("Offer {} was taken, new trade:\n{}", offerId, TradeFormat.format(trade));
+            log.info("Offer {} taken with payment account {}, new trade:\n{}",
+                    offerId,
+                    paymentAccount.getId(),
+                    TradeFormat.format(trade));
             return Optional.of(trade);
         } catch (Exception ex) {
             return Optional.empty();
         }
     }
-
 }

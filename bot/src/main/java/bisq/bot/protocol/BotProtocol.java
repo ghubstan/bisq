@@ -17,7 +17,6 @@
 
 package bisq.bot.protocol;
 
-import bisq.proto.grpc.ContractInfo;
 import bisq.proto.grpc.TradeInfo;
 
 import protobuf.PaymentAccount;
@@ -55,18 +54,19 @@ import bisq.cli.TransactionFormat;
 
 public abstract class BotProtocol {
 
+    // Don't use @Slf4j annotation to init log and use in Functions w/out IDE warnings.
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BotProtocol.class);
 
     // TODO move these to proper place.
     public static final String BSQ = "BSQ";
     public static final String BTC = "BTC";
 
-
-    // Don't use @Slf4j annotation to init log and use in Functions w/out IDE warnings.
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BotProtocol.class);
-
     protected static final SecureRandom RANDOM = new SecureRandom();
 
-    protected final Supplier<Long> randomDelay = () -> (long) (2000 + RANDOM.nextInt(5000));
+    // Random random millis in range [5, 30) seconds.
+    protected final Supplier<Long> shortRandomDelayInSeconds = () -> (long) (5000 + RANDOM.nextInt(30_000));
+    // Returns random millis in range [1, 15) minutes.
+    protected final Supplier<Long> longRandomDelayInMinutes = () -> (long) (60_000 + RANDOM.nextInt(15 * 60_000));
 
     protected final AtomicLong protocolStepStartTime = new AtomicLong(0);
     protected final Consumer<ProtocolStep> initProtocolStep = (step) -> {
@@ -106,7 +106,7 @@ public abstract class BotProtocol {
     public abstract void run();
 
     protected final Function<TradeInfo, TradeInfo> waitForTakerFeeTxConfirm = (trade) -> {
-        sleep(randomDelay.get());
+        sleep(shortRandomDelayInSeconds.get());
         waitForTakerDepositFee(trade.getTradeId(), WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED);
         waitForTakerDepositFee(trade.getTradeId(), WAIT_FOR_TAKER_DEPOSIT_TX_CONFIRMED);
         return trade;
@@ -135,7 +135,7 @@ public abstract class BotProtocol {
                                 depositTxProtocolStep.equals(WAIT_FOR_TAKER_DEPOSIT_TX_PUBLISHED) ? "published" : "confirmed",
                                 TransactionFormat.format(tx));
                     }
-                    sleep(randomDelay.get());
+                    sleep(shortRandomDelayInSeconds.get());
                 }
             } catch (Exception ex) {
                 if (this.getBotClient().tradeContractIsNotReady.test(ex, tradeId))
@@ -199,26 +199,23 @@ public abstract class BotProtocol {
                 trade.getTradeId());
         while (isWithinProtocolStepTimeLimit()) {
             checkIfShutdownCalled("Interrupted before checking to see if BSQ payment has been received.");
-            int numDelays = 0;
             try {
                 boolean isAmountReceived = this.getBotClient().verifyBsqSentToAddress(address, receiveAmountAsString);
-                log.warn("verifyBsqSentToAddress RESULT = {}", isAmountReceived);
                 if (isAmountReceived) {
-                    log.info("{} received payment of {} BSQ to address {} for trade with id {}.",
+                    log.info("{} has received payment of {} BSQ to address {} for trade with id {}.",
                             this.getBotDescription(),
                             receiveAmountAsString,
                             address,
                             trade.getTradeId());
                     return;
-                } else if (++numDelays % 5 == 0) {
-                    // TODO Fix bug: why am I not seeing this warning?
+                } else {
                     log.warn("{} has still has not received payment of {} BSQ to address {} for trade with id {}.",
                             this.getBotDescription(),
                             receiveAmountAsString,
                             address,
                             trade.getTradeId());
                 }
-                sleep(randomDelay.get());
+                sleep(shortRandomDelayInSeconds.get());
             } catch (Exception ex) {
                 throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex));
             }
@@ -261,7 +258,7 @@ public abstract class BotProtocol {
                         this.getBotDescription(),
                         trade.getShortId());
             }
-            sleep(randomDelay.get());
+            sleep(shortRandomDelayInSeconds.get());
         } // end while
 
         // If the while loop is exhausted, a payment started msg was not detected.
@@ -278,7 +275,7 @@ public abstract class BotProtocol {
                 break;
             } else {
                 log.warn("Trade contract for {} not ready.");
-                sleep(randomDelay.get());
+                sleep(shortRandomDelayInSeconds.get());
             }
         }
     };
@@ -322,7 +319,7 @@ public abstract class BotProtocol {
                         this.getBotDescription(),
                         trade.getShortId());
             }
-            sleep(randomDelay.get());
+            sleep(shortRandomDelayInSeconds.get());
         } // end while
 
         // If the while loop is exhausted, a payment rcvd confirmation msg was not detected within the protocol step time limit.
@@ -368,7 +365,7 @@ public abstract class BotProtocol {
                         this.getBotDescription(),
                         trade.getShortId());
             }
-            sleep(randomDelay.get());
+            sleep(shortRandomDelayInSeconds.get());
         } // end while
 
         // If the while loop is exhausted, a payout tx was not detected within the protocol step time limit.

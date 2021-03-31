@@ -91,7 +91,7 @@ public class ApiTestTakerBotProtocol extends ApiTestBotProtocol implements Taker
                     if (offer.isPresent())
                         return offer.get();
                     else
-                        sleep(randomDelay.get());
+                        sleep(shortRandomDelayInSeconds.get());
                 } catch (Exception ex) {
                     throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex), ex);
                 }

@@ -109,7 +109,7 @@ public class MarketMakerTakeOnlyBotProtocol extends ApiTestBotProtocol {
                                     formatOfferTable(currentOffers, currencyCode));
                         }
                     }
-                    sleep(randomDelay.get());
+                    sleep(shortRandomDelayInSeconds.get());
                 }
             } catch (Exception ex) {
                 throw new IllegalStateException(this.getBotClient().toCleanGrpcExceptionMessage(ex), ex);

@@ -51,7 +51,10 @@ import bisq.cli.opts.ArgumentList;
 @Slf4j
 public class BotMain {
 
+    // Quick testing
     // --password=xyz --port=9998 bsqmarketmaker --target-btc-amount=0.05 --target-price=0.00004 --target-spread=13 --trade-cycle-limit=1 --new-payment-accts-limit=10
+    // Longer test sessions
+    // --password=xyz --port=9998 bsqmarketmaker --target-btc-amount=0.05 --target-price=0.00004 --target-spread=13 --trade-cycle-limit=20 --new-payment-accts-limit=20
 
     enum BotType {
         bsqmarketmaker,

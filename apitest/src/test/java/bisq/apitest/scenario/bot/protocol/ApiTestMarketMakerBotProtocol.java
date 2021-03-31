@@ -187,7 +187,7 @@ public class ApiTestMarketMakerBotProtocol extends ApiTestBotProtocol implements
                                     formatOfferTable(myCurrentOffers, offerCounterCurrencyCode));
                         }
                     }
-                    sleep(randomDelay.get());
+                    sleep(shortRandomDelayInSeconds.get());
                 }
             } catch (Exception ex) {
                 throw new IllegalStateException(botClient.toCleanGrpcExceptionMessage(ex), ex);

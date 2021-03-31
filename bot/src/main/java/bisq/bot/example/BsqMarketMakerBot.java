@@ -57,8 +57,7 @@ public class BsqMarketMakerBot extends BaseMarketMakerBot {
     // Don't use @Slf4j annotation to init log and use in Functions w/out IDE warnings.
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BsqMarketMakerBot.class);
 
-    // ./bisq-cli --password=xyz --port=9998 createcryptopaymentacct --account-name="BSQ ACCT" --currency-code=BSQ --address=Bn3PCQgRwhkrGnaMp1RYwt9tFwL51YELqne
-
+    // TODO make this an option.
     static final long PROTOCOL_STEP_TIME_LIMIT = MINUTES.toMillis(180);
 
     public final Predicate<Integer> shouldLogWalletBalance = (i) -> i % 1 == 0;
