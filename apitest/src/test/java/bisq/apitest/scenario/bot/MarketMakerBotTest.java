@@ -55,7 +55,6 @@ public class MarketMakerBotTest extends AbstractBotTest {
 
         startSupportingApps(true,
                 true,
-                true,
                 bitcoind,
                 seednode,
                 arbdaemon,
