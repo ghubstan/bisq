@@ -30,6 +30,8 @@ import java.io.PrintWriter;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static bisq.apitest.config.ApiTestConfig.MEDIATOR;
+import static bisq.apitest.config.ApiTestConfig.REFUND_AGENT;
 import static bisq.common.app.DevEnv.DEV_PRIVILEGE_PRIV_KEY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.stream;
@@ -41,13 +43,6 @@ import bisq.apitest.ApiTestCase;
 import bisq.cli.GrpcClient;
 
 public class MethodTest extends ApiTestCase {
-
-    public static final String BSQ = "BSQ";
-    public static final String BTC = "BTC";
-
-    protected static final String ARBITRATOR = "arbitrator";
-    protected static final String MEDIATOR = "mediator";
-    protected static final String REFUND_AGENT = "refundagent";
 
     protected static final CoreProtoResolver CORE_PROTO_RESOLVER = new CoreProtoResolver();
 

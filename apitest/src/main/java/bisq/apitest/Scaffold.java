@@ -42,10 +42,14 @@ import lombok.extern.slf4j.Slf4j;
 import javax.annotation.Nullable;
 
 import static bisq.apitest.Scaffold.BitcoinCoreApp.bitcoind;
+import static bisq.apitest.config.ApiTestConfig.MEDIATOR;
+import static bisq.apitest.config.ApiTestConfig.REFUND_AGENT;
 import static bisq.apitest.config.BisqAppConfig.*;
+import static bisq.common.app.DevEnv.DEV_PRIVILEGE_PRIV_KEY;
 import static java.lang.String.format;
 import static java.lang.System.exit;
 import static java.lang.System.out;
+import static java.net.InetAddress.getLoopbackAddress;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -58,6 +62,7 @@ import bisq.apitest.linux.BashCommand;
 import bisq.apitest.linux.BisqProcess;
 import bisq.apitest.linux.BitcoinDaemon;
 import bisq.apitest.linux.LinuxProcess;
+import bisq.cli.GrpcClient;
 
 @Slf4j
 public class Scaffold {
@@ -415,8 +420,18 @@ public class Scaffold {
         if (seedNodeTaskFuture != null)
             verifyStartupCompleted(seedNodeTaskFuture);
 
-        if (arbNodeTaskFuture != null)
+        if (arbNodeTaskFuture != null) {
             verifyStartupCompleted(arbNodeTaskFuture);
+
+            if (config.registerDisputeAgents) {
+                log.info("Option --registerDisputeAgents=true, registering dispute agents.");
+                GrpcClient arbClient = new GrpcClient(getLoopbackAddress().getHostAddress(),
+                        arbdaemon.apiPort,
+                        config.apiPassword);
+                arbClient.registerDisputeAgent(MEDIATOR, DEV_PRIVILEGE_PRIV_KEY);
+                arbClient.registerDisputeAgent(REFUND_AGENT, DEV_PRIVILEGE_PRIV_KEY);
+            }
+        }
 
         if (aliceNodeTaskFuture != null)
             verifyStartupCompleted(aliceNodeTaskFuture);
