@@ -151,6 +151,8 @@ public class Scaffold {
 
         // Verify each startup task's future is done.
         verifyStartupCompleted();
+
+        maybeRegisterDisputeAgents();
         return this;
     }
 
@@ -420,18 +422,8 @@ public class Scaffold {
         if (seedNodeTaskFuture != null)
             verifyStartupCompleted(seedNodeTaskFuture);
 
-        if (arbNodeTaskFuture != null) {
+        if (arbNodeTaskFuture != null)
             verifyStartupCompleted(arbNodeTaskFuture);
-
-            if (config.registerDisputeAgents) {
-                log.info("Option --registerDisputeAgents=true, registering dispute agents.");
-                GrpcClient arbClient = new GrpcClient(getLoopbackAddress().getHostAddress(),
-                        arbdaemon.apiPort,
-                        config.apiPassword);
-                arbClient.registerDisputeAgent(MEDIATOR, DEV_PRIVILEGE_PRIV_KEY);
-                arbClient.registerDisputeAgent(REFUND_AGENT, DEV_PRIVILEGE_PRIV_KEY);
-            }
-        }
 
         if (aliceNodeTaskFuture != null)
             verifyStartupCompleted(aliceNodeTaskFuture);
@@ -462,5 +454,16 @@ public class Scaffold {
     private void verifyNotWindows() {
         if (Utilities.isWindows())
             throw new IllegalStateException("ApiTest not supported on Windows");
+    }
+
+    private void maybeRegisterDisputeAgents() {
+        if (config.hasSupportingApp(arbdaemon.name()) && config.registerDisputeAgents) {
+            log.info("Option --registerDisputeAgents=true, registering dispute agents in arbdaemon ...");
+            GrpcClient arbClient = new GrpcClient(getLoopbackAddress().getHostAddress(),
+                    arbdaemon.apiPort,
+                    config.apiPassword);
+            arbClient.registerDisputeAgent(MEDIATOR, DEV_PRIVILEGE_PRIV_KEY);
+            arbClient.registerDisputeAgent(REFUND_AGENT, DEV_PRIVILEGE_PRIV_KEY);
+        }
     }
 }
