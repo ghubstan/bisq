@@ -202,6 +202,7 @@ public abstract class BotProtocol {
             int numDelays = 0;
             try {
                 boolean isAmountReceived = this.getBotClient().verifyBsqSentToAddress(address, receiveAmountAsString);
+                log.warn("verifyBsqSentToAddress RESULT = {}", isAmountReceived);
                 if (isAmountReceived) {
                     log.info("{} received payment of {} BSQ to address {} for trade with id {}.",
                             this.getBotDescription(),
@@ -210,6 +211,7 @@ public abstract class BotProtocol {
                             trade.getTradeId());
                     return;
                 } else if (++numDelays % 5 == 0) {
+                    // TODO Fix bug: why am I not seeing this warning?
                     log.warn("{} has still has not received payment of {} BSQ to address {} for trade with id {}.",
                             this.getBotDescription(),
                             receiveAmountAsString,
@@ -238,35 +240,17 @@ public abstract class BotProtocol {
             try {
                 var t = this.getBotClient().getTrade(trade.getTradeId());
                 if (t.getIsFiatSent()) {
-
-
-                    // TODO Check trade payload address balance before
-                    //  accepting any claim that payment was sent.
-                    // TODO This only applies to BSQ trades.
-                    if (t.hasContract()) {
-                        ContractInfo contract = t.getContract();
-                        String receivingBsqAddress;
-                        if (contract.getIsBuyerMakerAndSellerTaker()) {
-                            // Sell BSQ (Buy BTC)
-                            receivingBsqAddress = contract.getMakerPaymentAccountPayload().getAddress();
-                        } else {
-                            // BUY BSQ (Sell BTC)
-                            receivingBsqAddress = contract.getTakerPaymentAccountPayload().getAddress();
-                        }
-
-                        // TODO Create getbsqaddressbalance?
-                        // TODO How else can I confirm BSQ received?
-                        //
-                        // BsqWalletService ->
-                        //  Coin valueSentToMe = bsqWalletService.getValueSentToMeForTransaction(transaction);
-                        //
-                        // trade.getIsPayoutPublished() ?
-                        // trade.getPayoutTxId() ?
-                    }
-
                     log.info("Buyer has started payment for trade: {}\n{}",
                             t.getTradeId(),
                             TradeFormat.format(t));
+
+                    var isBsqOffer = this.getPaymentAccount().getSelectedTradeCurrency().getCode().equals(BSQ);
+                    if (isBsqOffer) {
+                        // Other side claims to have sent BSQ payment.
+                        // Wait for it to show up.
+                        waitForBsqPayment.accept(trade);
+                    }
+
                     return t;
                 }
             } catch (Exception ex) {
@@ -287,7 +271,16 @@ public abstract class BotProtocol {
     protected final Consumer<TradeInfo> sendBsqPayment = (trade) -> {
         // Be very careful when using this on mainnet.
         initProtocolStep.accept(SEND_PAYMENT_TO_RCV_ADDRESS);
-        this.getBotClient().makeBsqPayment(trade);
+        while (true) {
+            // TODO FIX
+            if (trade.hasContract()) {
+                this.getBotClient().makeBsqPayment(trade);
+                break;
+            } else {
+                log.warn("Trade contract for {} not ready.");
+                sleep(randomDelay.get());
+            }
+        }
     };
 
     protected final Function<TradeInfo, TradeInfo> sendPaymentStartedMessage = (trade) -> {
