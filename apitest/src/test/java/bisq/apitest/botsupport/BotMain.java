@@ -136,8 +136,9 @@ public class BotMain {
                     var targetBtcAmount = opts.getTargetBtcAmount();
                     var targetPrice = opts.getTargetPrice();
                     var targetSpread = opts.getTargetSpread();
-                    var tradeCycleLimit = opts.getTradeCycleLimit(); // todo fix name
+                    var tradeCycleLimit = opts.getTradeCycleLimit();
                     var newBsqPaymentAccountsLimit = opts.getNewBsqPaymentAccountsLimit();
+                    var protocolStepTimeDeadlineInMinutes = opts.getProtocolStepTimeDeadlineInMinutes();
                     var bsqMarketMakerBot = new BsqMarketMakerBot(host,
                             port,
                             password,
@@ -145,7 +146,8 @@ public class BotMain {
                             new BigDecimal(targetPrice),
                             new BigDecimal(targetBtcAmount),
                             new BigDecimal(targetSpread),
-                            tradeCycleLimit);
+                            tradeCycleLimit,
+                            protocolStepTimeDeadlineInMinutes);
                     log.info("Starting {}.", bsqMarketMakerBot.getClass().getSimpleName());
                     bsqMarketMakerBot.run();
                     log.info("{} shutdown complete.", bsqMarketMakerBot.getClass().getSimpleName());

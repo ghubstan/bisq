@@ -23,9 +23,10 @@ import bisq.cli.opts.OptLabel;
  * Bot opt label definitions.
  */
 public class BotOptLabel extends OptLabel {
+    public final static String OPT_NEW_PAYMENT_ACCOUNTS_LIMIT = "new-payment-accts-limit";
+    public final static String OPT_PROTOCOL_STEP_DEADLINE_IN_MINUTES = "protocol-step-deadline";
     public final static String OPT_TARGET_BTC_AMOUNT = "target-btc-amount";
     public final static String OPT_TARGET_PRICE = "target-price";
     public final static String OPT_TARGET_SPREAD = "target-spread";
     public final static String OPT_TRADE_CYCLE_LIMIT = "trade-cycle-limit";
-    public final static String OPT_NEW_PAYMENT_ACCOUNTS_LIMIT = "new-payment-accts-limit";
 }

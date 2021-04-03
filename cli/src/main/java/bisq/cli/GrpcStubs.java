@@ -31,6 +31,7 @@ import io.grpc.CallCredentials;
 import io.grpc.ManagedChannelBuilder;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.slf4j.event.Level.WARN;
 
 
 
@@ -64,7 +65,7 @@ public final class GrpcStubs {
             }
         }));
 
-        var delayInterceptor = useCallDelayInterceptor ? new CallDelayInterceptor(true) : null;
+        var delayInterceptor = useCallDelayInterceptor ? new CallDelayInterceptor(WARN) : null;
 
         this.disputeAgentsService = DisputeAgentsGrpc.newBlockingStub(channel)
                 .withCallCredentials(credentials);

@@ -40,7 +40,7 @@ import static bisq.apitest.botsupport.shutdown.ManualShutdown.startShutdownTimer
 import static bisq.cli.TableFormat.formatBalancesTbls;
 import static bisq.cli.TableFormat.formatOfferTable;
 import static java.lang.String.format;
-import static java.util.concurrent.TimeUnit.DAYS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static protobuf.OfferPayload.Direction.BUY;
 import static protobuf.OfferPayload.Direction.SELL;
 
@@ -58,15 +58,13 @@ public class BsqMarketMakerBot extends BaseMarketMakerBot {
     // Don't use @Slf4j annotation to init log and use in Functions w/out IDE warnings.
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BsqMarketMakerBot.class);
 
-    // TODO make this an option.
-    static final long PROTOCOL_STEP_TIME_LIMIT = DAYS.toMillis(2);
-
     public final Predicate<Integer> shouldLogWalletBalance = (i) -> i % 1 == 0;
 
     private final BigDecimal targetPrice;
     private final BigDecimal targetBtcAmount;
     private final BigDecimal targetSpread;
     private final int tradeCycleLimit;
+    private final long protocolStepTimeDeadlineInMs;
 
     // Use a randomly chosen payment account for each trade.
     // This is preferred over using the same payment account over and over because
@@ -82,12 +80,14 @@ public class BsqMarketMakerBot extends BaseMarketMakerBot {
                              BigDecimal targetPrice,
                              BigDecimal targetBtcAmount,
                              BigDecimal targetSpread,
-                             int tradeCycleLimit) {
+                             int tradeCycleLimit,
+                             int protocolStepTimeDeadlineMinutes) {
         super(host, port, password, newBsqPaymentAccountsLimit);
         this.targetPrice = targetPrice;
         this.targetBtcAmount = targetBtcAmount;
         this.targetSpread = targetSpread;
         this.tradeCycleLimit = tradeCycleLimit;
+        this.protocolStepTimeDeadlineInMs = MINUTES.toMillis(protocolStepTimeDeadlineMinutes);
     }
 
     public void run() {
@@ -116,8 +116,6 @@ public class BsqMarketMakerBot extends BaseMarketMakerBot {
                         SELLER_BOT_NAME);
             }
 
-            // TODO Optionally auto-shutdown after max cycles are complete.
-            //  See boolean stayAlive usage.
             waitForManualShutdown();
 
         } catch (ManualBotShutdownException ex) {
@@ -172,7 +170,7 @@ public class BsqMarketMakerBot extends BaseMarketMakerBot {
                     MarketMakerBotProtocol botProtocol = new MarketMakerBotProtocol(BUYER_BOT_NAME,
                             botClient,
                             receiverPaymentAccount,
-                            PROTOCOL_STEP_TIME_LIMIT,
+                            this.getProtocolStepTimeDeadlineInMs(),
                             new BashScriptGenerator(password, port, receiverPaymentAccount.getId(), false),
                             BUY.name(),
                             this.getTargetPrice(),
@@ -220,7 +218,7 @@ public class BsqMarketMakerBot extends BaseMarketMakerBot {
                     MarketMakerBotProtocol botProtocol = new MarketMakerBotProtocol(SELLER_BOT_NAME,
                             botClient,
                             senderPaymentAccount,
-                            PROTOCOL_STEP_TIME_LIMIT,
+                            this.getProtocolStepTimeDeadlineInMs(),
                             new BashScriptGenerator(password, port, senderPaymentAccount.getId(), false),
                             SELL.name(),
                             this.getTargetPrice(),

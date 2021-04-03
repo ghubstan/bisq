@@ -85,10 +85,12 @@ public final class GrpcClient {
 
     private final GrpcStubs grpcStubs;
 
+    // Preferred constructor for a CLI.
     public GrpcClient(String apiHost, int apiPort, String apiPassword) {
         this(apiHost, apiPort, apiPassword, false);
     }
 
+    // Preferred constructor for bots and api tests.
     public GrpcClient(String apiHost, int apiPort, String apiPassword, boolean useCallDelayInterceptor) {
         this.grpcStubs = new GrpcStubs(apiHost, apiPort, apiPassword, useCallDelayInterceptor);
     }

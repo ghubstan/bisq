@@ -12,13 +12,19 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
 
+import org.slf4j.event.Level;
+
 import lombok.extern.slf4j.Slf4j;
 
+import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+/**
+ * gRPC ClientInterceptor to delay rate metered calls in a non-intrusive way.
+ */
 @SuppressWarnings("rawtypes")
 @Slf4j
 public class CallDelayInterceptor implements ClientInterceptor {
@@ -49,14 +55,16 @@ public class CallDelayInterceptor implements ClientInterceptor {
 
     private final Predicate<MethodDescriptor> hasConfiguredDelay = (m) -> methodDelayMap.get(m) != null;
 
-    private final boolean logDelays;
+    // This may seem overkill but we should never log delays in the CLI console, and
+    // should be able to log delays with a configurable log level in bots and tests.
+    private final Level logLevel;
 
     public CallDelayInterceptor() {
-        this(false);
+        this(null);
     }
 
-    public CallDelayInterceptor(boolean logDelays) {
-        this.logDelays = logDelays;
+    public CallDelayInterceptor(Level logLevel) {
+        this.logLevel = logLevel;
         methodDelayMap.keySet().stream().iterator()
                 .forEachRemaining(methodDescriptor ->
                         methodCallTimestampMap.put(methodDescriptor, 0L));
@@ -81,8 +89,7 @@ public class CallDelayInterceptor implements ClientInterceptor {
                 var now = currentTimeMillis();
                 if (now - lastCallTimestamp < maxDelay) {
                     var minDelay = maxDelay - (now - lastCallTimestamp);
-                    if(logDelays)
-                        log.warn("Delaying {} call for {} ms.", method.getFullMethodName(), minDelay);
+                    maybeLogDelay(method, minDelay);
                     delayCall(minDelay);
                 }
             }
@@ -98,6 +105,32 @@ public class CallDelayInterceptor implements ClientInterceptor {
             MILLISECONDS.sleep(milliseconds);
         } catch (InterruptedException ignored) {
             // empty
+        }
+    }
+
+    private void maybeLogDelay(MethodDescriptor method, long delay) {
+        if (logLevel == null)
+            return;
+
+        String msg = format("Delaying %s call for %d ms.", method.getFullMethodName(), delay);
+        switch (logLevel) {
+            case ERROR:
+                log.error(msg);
+                break;
+            case WARN:
+                log.warn(msg);
+                break;
+            case INFO:
+                log.info(msg);
+                break;
+            case DEBUG:
+                log.debug(msg);
+                break;
+            case TRACE:
+                log.trace(msg);
+                break;
+            default:
+                return;
         }
     }
 }

@@ -20,6 +20,7 @@ package bisq.apitest.botsupport.opts;
 import joptsimple.OptionSpec;
 
 import static bisq.apitest.botsupport.opts.BotOptLabel.*;
+import static java.util.concurrent.TimeUnit.HOURS;
 
 
 
@@ -51,6 +52,13 @@ public class BsqMarketMakerBotOptionParser extends AbstractMethodOptionParser im
             .withRequiredArg()
             .ofType(Integer.class)
             .defaultsTo(5);
+
+    final OptionSpec<Integer> protocolStepTimeDeadlineInMinutesOpt =
+            parser.accepts(OPT_PROTOCOL_STEP_DEADLINE_IN_MINUTES,
+                    "trade protocol step deadline (minutes)")
+                    .withRequiredArg()
+                    .ofType(Integer.class)
+                    .defaultsTo((int) HOURS.toMinutes(24));
 
     public BsqMarketMakerBotOptionParser(String[] args) {
         super(args);
@@ -96,5 +104,9 @@ public class BsqMarketMakerBotOptionParser extends AbstractMethodOptionParser im
 
     public int getNewBsqPaymentAccountsLimit() {
         return options.valueOf(newBsqPaymentAccountsLimitOpt);
+    }
+
+    public int getProtocolStepTimeDeadlineInMinutes() {
+        return options.valueOf(protocolStepTimeDeadlineInMinutesOpt);
     }
 }
