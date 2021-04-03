@@ -40,7 +40,7 @@ import static bisq.apitest.botsupport.shutdown.ManualShutdown.startShutdownTimer
 import static bisq.cli.TableFormat.formatBalancesTbls;
 import static bisq.cli.TableFormat.formatOfferTable;
 import static java.lang.String.format;
-import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.DAYS;
 import static protobuf.OfferPayload.Direction.BUY;
 import static protobuf.OfferPayload.Direction.SELL;
 
@@ -59,7 +59,7 @@ public class BsqMarketMakerBot extends BaseMarketMakerBot {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BsqMarketMakerBot.class);
 
     // TODO make this an option.
-    static final long PROTOCOL_STEP_TIME_LIMIT = MINUTES.toMillis(180);
+    static final long PROTOCOL_STEP_TIME_LIMIT = DAYS.toMillis(2);
 
     public final Predicate<Integer> shouldLogWalletBalance = (i) -> i % 1 == 0;
 
@@ -108,8 +108,6 @@ public class BsqMarketMakerBot extends BaseMarketMakerBot {
                         botClient,
                         BUYER_BOT_NAME);
             }
-
-            rest(15);
 
             // Do not start another bot if the 1st one is already shutting down.
             if (!isShutdownCalled()) {

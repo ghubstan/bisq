@@ -86,7 +86,11 @@ public final class GrpcClient {
     private final GrpcStubs grpcStubs;
 
     public GrpcClient(String apiHost, int apiPort, String apiPassword) {
-        this.grpcStubs = new GrpcStubs(apiHost, apiPort, apiPassword);
+        this(apiHost, apiPort, apiPassword, false);
+    }
+
+    public GrpcClient(String apiHost, int apiPort, String apiPassword, boolean useCallDelayInterceptor) {
+        this.grpcStubs = new GrpcStubs(apiHost, apiPort, apiPassword, useCallDelayInterceptor);
     }
 
     public String getVersion() {

@@ -614,7 +614,8 @@ public class BotClient {
     }
 
     /**
-     * TODO
+     * Returns list of instant cryptocurrency BSQ payment accounts with name
+     * "Receiver BSQ Account", or throws an exception.
      * @return List<PaymentAccount>
      */
     public List<PaymentAccount> getReceiverBsqPaymentAccounts() {
@@ -626,7 +627,8 @@ public class BotClient {
     }
 
     /**
-     * TODO
+     * Returns list of instant cryptocurrency BSQ payment accounts with name
+     * "Sender BSQ Account", or throws an exception.
      * @return List<PaymentAccount>
      */
     public List<PaymentAccount> getSenderBsqPaymentAccounts() {

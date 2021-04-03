@@ -32,6 +32,10 @@ import io.grpc.ManagedChannelBuilder;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+
+
+import bisq.cli.interceptor.CallDelayInterceptor;
+
 public final class GrpcStubs {
 
     public final DisputeAgentsGrpc.DisputeAgentsBlockingStub disputeAgentsService;
@@ -45,6 +49,10 @@ public final class GrpcStubs {
     public final WalletsGrpc.WalletsBlockingStub walletsService;
 
     public GrpcStubs(String apiHost, int apiPort, String apiPassword) {
+        this(apiHost, apiPort, apiPassword, false);
+    }
+
+    public GrpcStubs(String apiHost, int apiPort, String apiPassword, boolean useCallDelayInterceptor) {
         CallCredentials credentials = new PasswordCallCredentials(apiPassword);
 
         var channel = ManagedChannelBuilder.forAddress(apiHost, apiPort).usePlaintext().build();
@@ -56,14 +64,34 @@ public final class GrpcStubs {
             }
         }));
 
-        this.disputeAgentsService = DisputeAgentsGrpc.newBlockingStub(channel).withCallCredentials(credentials);
-        this.helpService = HelpGrpc.newBlockingStub(channel).withCallCredentials(credentials);
-        this.versionService = GetVersionGrpc.newBlockingStub(channel).withCallCredentials(credentials);
-        this.offersService = OffersGrpc.newBlockingStub(channel).withCallCredentials(credentials);
-        this.paymentAccountsService = PaymentAccountsGrpc.newBlockingStub(channel).withCallCredentials(credentials);
-        this.priceService = PriceGrpc.newBlockingStub(channel).withCallCredentials(credentials);
-        this.shutdownService = ShutdownServerGrpc.newBlockingStub(channel).withCallCredentials(credentials);
-        this.tradesService = TradesGrpc.newBlockingStub(channel).withCallCredentials(credentials);
-        this.walletsService = WalletsGrpc.newBlockingStub(channel).withCallCredentials(credentials);
+        var delayInterceptor = useCallDelayInterceptor ? new CallDelayInterceptor(true) : null;
+
+        this.disputeAgentsService = DisputeAgentsGrpc.newBlockingStub(channel)
+                .withCallCredentials(credentials);
+        this.helpService = HelpGrpc.newBlockingStub(channel)
+                .withCallCredentials(credentials);
+        this.versionService = GetVersionGrpc.newBlockingStub(channel)
+                .withCallCredentials(credentials);
+
+        this.offersService = useCallDelayInterceptor
+                ? OffersGrpc.newBlockingStub(channel).withCallCredentials(credentials).withInterceptors(delayInterceptor)
+                : OffersGrpc.newBlockingStub(channel).withCallCredentials(credentials);
+
+        this.paymentAccountsService = useCallDelayInterceptor
+                ? PaymentAccountsGrpc.newBlockingStub(channel).withCallCredentials(credentials).withInterceptors(delayInterceptor)
+                : PaymentAccountsGrpc.newBlockingStub(channel).withCallCredentials(credentials);
+
+        this.priceService = PriceGrpc.newBlockingStub(channel)
+                .withCallCredentials(credentials);
+        this.shutdownService = ShutdownServerGrpc.newBlockingStub(channel)
+                .withCallCredentials(credentials);
+
+        this.tradesService = useCallDelayInterceptor
+                ? TradesGrpc.newBlockingStub(channel).withCallCredentials(credentials).withInterceptors(delayInterceptor)
+                : TradesGrpc.newBlockingStub(channel).withCallCredentials(credentials);
+
+        this.walletsService = useCallDelayInterceptor
+                ? WalletsGrpc.newBlockingStub(channel).withCallCredentials(credentials).withInterceptors(delayInterceptor)
+                : WalletsGrpc.newBlockingStub(channel).withCallCredentials(credentials);
     }
 }

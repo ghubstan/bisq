@@ -94,6 +94,9 @@ abstract class BaseMarketMakerBot {
 
     protected final List<TradeInfo> botTradeHistory = new ArrayList<>(); // TODO persist?  Json?
 
+    // TODO Make this an option
+    protected static final boolean USE_CALL_DELAY_INTERCEPTOR = true;
+
     public BaseMarketMakerBot(String host,
                               int port,
                               String password,
@@ -103,7 +106,7 @@ abstract class BaseMarketMakerBot {
         this.port = port;
         this.password = password;
         this.newBsqPaymentAccountsLimit = newBsqPaymentAccountsLimit;
-        this.botClient = new BotClient(new GrpcClient(host, port, password));
+        this.botClient = new BotClient(new GrpcClient(host, port, password, USE_CALL_DELAY_INTERCEPTOR));
         this.receiverPaymentAccounts.addAll(botClient.getReceiverBsqPaymentAccounts());
         this.senderPaymentAccount = getOrCreateSenderPaymentAccount();
     }

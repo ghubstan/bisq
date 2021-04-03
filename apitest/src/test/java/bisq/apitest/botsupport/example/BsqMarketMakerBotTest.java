@@ -4,6 +4,8 @@ import bisq.proto.grpc.OfferInfo;
 
 import protobuf.PaymentAccount;
 
+import io.grpc.StatusRuntimeException;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,7 +17,7 @@ import static bisq.cli.CurrencyFormat.formatBsqAmount;
 import static bisq.cli.TableFormat.formatBalancesTbls;
 import static bisq.cli.TableFormat.formatOfferTable;
 import static java.lang.String.format;
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static protobuf.OfferPayload.Direction.BUY;
 import static protobuf.OfferPayload.Direction.SELL;
 
@@ -28,6 +30,9 @@ import bisq.cli.TradeFormat;
 // Requirements:  test harness, registered agents, BsqMarketMakerBot.
 //
 // $ ./bisq-apitest --apiPassword=xyz --supportingApps=bitcoind,seednode,arbdaemon,alicedaemon,bobdaemon  --shutdownAfterTests=false --enableBisqDebugging=false
+// $ ./bisq-bot --password=xyz --port=9998 bsqmarketmaker --target-btc-amount=0.005 --target-price=0.00004 --target-spread=13.00 --trade-cycle-limit=10 --new-payment-accts-limit=10
+//
+//
 // $ ./bisq-bot --password=xyz --port=9998 bsqmarketmaker --target-btc-amount=0.05 --target-price=0.00004 --target-spread=13.00 --trade-cycle-limit=5 --new-payment-accts-limit=10
 // $ ./bisq-bot --password=xyz --port=9998 bsqmarketmaker --target-btc-amount=0.05 --target-price=0.00004 --target-spread=13.00 --trade-cycle-limit=20 --new-payment-accts-limit=20
 // Only use the one below without the the bloom filter hack.
@@ -36,16 +41,19 @@ import bisq.cli.TradeFormat;
 @Slf4j
 public class BsqMarketMakerBotTest {
 
+    // TODO Make this an option
+    protected static final boolean USE_CALL_DELAY_INTERCEPTOR = true;
+
     // TODO Install shutdown hook, check state.
 
-    private static final int MAX_TRADE_CYCLES = 10;
+    private static final int MAX_TRADE_CYCLES = 1;
 
     private final BotClient botClient;
     private final PaymentAccount paymentAccount;
     private final List<OfferInfo> offers;
 
     public BsqMarketMakerBotTest() {
-        this.botClient = new BotClient(new GrpcClient("localhost", 9999, "xyz"));
+        this.botClient = new BotClient(new GrpcClient("localhost", 9999, "xyz", USE_CALL_DELAY_INTERCEPTOR));
         this.paymentAccount = botClient.createCryptoCurrencyPaymentAccount("Bob's Instant Acct", true);
         this.offers = new ArrayList<>();
     }
@@ -59,24 +67,23 @@ public class BsqMarketMakerBotTest {
                 offers.addAll(botClient.getOffersSortedByDate(BTC));
                 verifyHaveOffers(tradeCycle);  // Should 1 BUY and 1 SELL for each trade cycle
 
-                takeBuyBsqOffer();
-                SECONDS.sleep(30);
-                takeSellBsqOffer();
-                SECONDS.sleep(10);
+                takeBuyBsqSellBtcOffer();
+                rest(45_000); // Wallet may not have correct available balance, wait a bit.
+                takeSellBsqBuyBtcOffer();
 
                 verifyHaveTrades();
-                SECONDS.sleep(5);
+                rest(45_000); // Wallet may not have correct available balance, wait a bit.
 
                 sendAliceBsqPaymentForHerBtc();
-                SECONDS.sleep(60);
+                rest(45_000);
 
                 verifyBsqReceivedFromAlice();
-                SECONDS.sleep(60);
+                rest(45_000);
 
-                SECONDS.sleep(5);
+                rest(5_000);
                 closeTrades();
 
-                SECONDS.sleep(5);
+                rest(5_000);
                 printBalance();
 
                 offers.clear();
@@ -84,7 +91,7 @@ public class BsqMarketMakerBotTest {
                 tradeCycle++;
                 if (tradeCycle < MAX_TRADE_CYCLES) {
                     log.info("Completed {} trade cycle(s).  Starting the next in 1 minute.", tradeCycle);
-                    SECONDS.sleep(60);
+                    rest(60_000);
                 }
             }
 
@@ -96,7 +103,7 @@ public class BsqMarketMakerBotTest {
         }
     }
 
-    protected void takeBuyBsqOffer() {
+    protected void takeBuyBsqSellBtcOffer() {
         var offer = offers.stream().filter(o -> o.getDirection().equals(SELL.name())).findFirst().get();
         log.info("Bob is taking Buy BSQ (Sell BTC) offer {} using payment account {}.",
                 offer.getId(),
@@ -104,7 +111,7 @@ public class BsqMarketMakerBotTest {
         botClient.takeOffer(offer.getId(), paymentAccount, BSQ);
     }
 
-    protected void takeSellBsqOffer() {
+    protected void takeSellBsqBuyBtcOffer() {
         var offer = offers.stream().filter(o -> o.getDirection().equals(BUY.name())).findFirst().get();
         log.info("Bob is taking Sell BSQ (Buy BTC) offer {} using payment account {}.",
                 offer.getId(),
@@ -136,18 +143,14 @@ public class BsqMarketMakerBotTest {
         } else if (offers.size() == 1) {
             // TODO Wait for the next offer to sync up again.
             for (int i = 0; i < 10; i++) {
-                try {
-                    log.warn("There is only 1 available offer {} at start of cycle, will check again in 10 seconds.",
-                            offers.get(0).getId());
-                    SECONDS.sleep(10);
-                    offers.clear();
-                    offers.addAll(botClient.getOffersSortedByDate(BTC));
-                    if (offers.size() == 2) {
-                        log.info("Now Bob can take offers:\n{}", formatOfferTable(offers, BSQ));
-                        return;
-                    }
-                } catch (InterruptedException ignored) {
-                    // empty
+                log.warn("There is only 1 available offer {} at start of cycle, will check again in 10 seconds.",
+                        offers.get(0).getId());
+                rest(10_000);
+                offers.clear();
+                offers.addAll(botClient.getOffersSortedByDate(BTC));
+                if (offers.size() == 2) {
+                    log.info("Now Bob can take offers:\n{}", formatOfferTable(offers, BSQ));
+                    return;
                 }
             }
             throw new IllegalStateException(
@@ -158,20 +161,44 @@ public class BsqMarketMakerBotTest {
     }
 
     protected void verifyHaveTrades() {
-        var alicesBuyOfferId = getAlicesBuyBsqOfferId();
-        var bobsBuyBsqTrade = botClient.getTrade(alicesBuyOfferId);
-        if (bobsBuyBsqTrade != null) {
-            log.info("Bob's Buy BSQ (Sell BTC) Trade: \n{}", TradeFormat.format(bobsBuyBsqTrade));
-        } else {
-            throw new IllegalStateException(format("Take BUY offer %s failed.", alicesBuyOfferId));
+        while (true) {
+            var alicesBuyOfferId = getAlicesBuyBsqOfferId();
+            try {
+                var bobsBuyBsqTrade = botClient.getTrade(alicesBuyOfferId);
+                if (bobsBuyBsqTrade != null) {
+                    log.info("Bob's Buy BSQ (Sell BTC) Trade: \n{}", TradeFormat.format(bobsBuyBsqTrade));
+                    break;
+                } else {
+                    throw new IllegalStateException(format("Take BUY offer %s failed.", alicesBuyOfferId));
+                }
+            } catch (StatusRuntimeException ex) {
+                if (botClient.tradeContractIsNotReady.test(ex, alicesBuyOfferId)) {
+                    log.warn("{} for trade {}, will try again", ex.getMessage(), alicesBuyOfferId);
+                    rest(10_000);
+                } else {
+                    throw ex;
+                }
+            }
         }
 
-        var alicesSellOfferId = getAlicesSellBsqOfferId();
-        var bobsSellBsqTrade = botClient.getTrade(alicesSellOfferId);
-        if (bobsSellBsqTrade != null) {
-            log.info("Bob's Sell BSQ (Buy BTC) Trade: \n{}", TradeFormat.format(bobsSellBsqTrade));
-        } else {
-            throw new IllegalStateException(format("Take SELL offer %s failed.", alicesSellOfferId));
+        while (true) {
+            var alicesSellOfferId = getAlicesSellBsqOfferId();
+            try {
+                var bobsSellBsqTrade = botClient.getTrade(alicesSellOfferId);
+                if (bobsSellBsqTrade != null) {
+                    log.info("Bob's Sell BSQ (Buy BTC) Trade: \n{}", TradeFormat.format(bobsSellBsqTrade));
+                    break;
+                } else {
+                    throw new IllegalStateException(format("Take SELL offer %s failed.", alicesSellOfferId));
+                }
+            } catch (StatusRuntimeException ex) {
+                if (botClient.tradeContractIsNotReady.test(ex, alicesSellOfferId)) {
+                    log.warn("{} for trade {}, will try again", ex.getMessage(), alicesSellOfferId);
+                    rest(10_000);
+                } else {
+                    throw ex;
+                }
+            }
         }
     }
 
@@ -181,7 +208,7 @@ public class BsqMarketMakerBotTest {
             var trade = botClient.getTrade(tradeId);
             botClient.makeBsqPayment(trade);
             log.info("Payment sent, generate a btc block now.");
-            SECONDS.sleep(15);
+            rest(15_000);
             botClient.sendConfirmPaymentStartedMessage(tradeId);
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -206,7 +233,7 @@ public class BsqMarketMakerBotTest {
                     tradeId);
             log.info("Give bot time to send payment.");
             for (int i = 0; i < 5; i++) {
-                SECONDS.sleep(30);
+                rest(30_000);
                 boolean receivedPayment = botClient.verifyBsqSentToAddress(address, receiveAmountAsString);
                 if (receivedPayment) {
                     log.warn("Payment received, sending payment rcvd confirmation.");
@@ -241,6 +268,15 @@ public class BsqMarketMakerBotTest {
     protected String getAlicesSellBsqOfferId() {
         // Sell BSQ = BUY BTC
         return offers.stream().filter(o -> o.getDirection().equals(BUY.name())).findFirst().get().getId();
+    }
+
+
+    private void rest(long duration) {
+        try {
+            MILLISECONDS.sleep(duration);
+        } catch (InterruptedException interruptedException) {
+            // empty
+        }
     }
 
     public static void main(String[] args) {

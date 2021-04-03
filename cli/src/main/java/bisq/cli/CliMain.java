@@ -146,7 +146,7 @@ public class CliMain {
             throw new IllegalArgumentException(format("'%s' is not a supported method", methodName));
         }
 
-        GrpcClient client = new GrpcClient(host, port, password);
+        GrpcClient client = new GrpcClient(host, port, password, true);
         try {
             switch (method) {
                 case getversion: {
