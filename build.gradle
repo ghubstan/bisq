@@ -3,10 +3,10 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.10'
+        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.15'
         classpath 'com.google.gradle:osdetector-gradle-plugin:1.6.0'
         classpath 'com.github.jengelman.gradle.plugins:shadow:5.2.0'
-        classpath 'org.springframework.boot:spring-boot-gradle-plugin:1.5.10.RELEASE'
+        classpath 'org.springframework.boot:spring-boot-gradle-plugin:2.4.5'
     }
 }
 
@@ -65,13 +65,13 @@ configure(subprojects) {
         mockitoVersion = '3.0.0'
         netlayerVersion = '8db4a13' // Commit ID from https://github.com/bisq-network/netlayer/commits/externaltor
         protobufVersion = '3.10.0'
-        protocVersion = protobufVersion
+        protocVersion = '3.10.0'
         pushyVersion = '0.13.2'
         qrgenVersion = '1.3'
         sarxosVersion = '0.3.12'
         slf4jVersion = '1.7.30'
         sparkVersion = '2.5.2'
-        springBootVersion = '1.5.10.RELEASE'
+        springBootVersion = '2.4.5'
 
         os = osdetector.os == 'osx' ? 'mac' : osdetector.os == 'windows' ? 'win' : osdetector.os
     }
@@ -435,6 +435,15 @@ configure(project(':desktop')) {
 
     sourceSets.main.resources.srcDirs += ['src/main/java'] // to copy fxml and css files
 
+    // Avoid duplicating jsocks.
+    distTar {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    installDist {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
     dependencies {
         implementation project(':proto')
         implementation project(':assets')
@@ -492,6 +501,15 @@ configure(project(':desktop')) {
 
 configure(project(':monitor')) {
     mainClassName = 'bisq.monitor.Monitor'
+
+    // Avoid duplicating jsocks.
+    distTar {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    installDist {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 
     test {
         useJUnitPlatform()
@@ -583,12 +601,25 @@ configure(project(':pricenode')) {
         implementation("org.knowm.xchange:xchange-poloniex:$knowmXchangeVersion")
         implementation("org.knowm.xchange:xchange-quoine:$knowmXchangeVersion")
         implementation("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
-        implementation("org.springframework.boot:spring-boot-starter-actuator")
+        implementation("org.springframework.boot:spring-boot-starter-actuator:$springBootVersion")
         testImplementation "org.junit.jupiter:junit-jupiter-api:$jupiterVersion"
         testImplementation "org.junit.jupiter:junit-jupiter-params:$jupiterVersion"
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$jupiterVersion")
         testCompileOnly "org.projectlombok:lombok:$lombokVersion"
         testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
+    }
+
+    // Avoid duplicating jsocks.
+    distTar {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    installDist {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    bootJar {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
 
     test {
@@ -632,9 +663,18 @@ configure(project(':relay')) {
 
 
 configure(project(':seednode')) {
+    mainClassName = 'bisq.seednode.SeedNodeMain'
+
     apply plugin: 'com.github.johnrengelman.shadow'
 
-    mainClassName = 'bisq.seednode.SeedNodeMain'
+    // Avoid duplicating jsocks.
+    distTar {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    installDist {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 
     dependencies {
         implementation project(':common')
@@ -657,6 +697,15 @@ configure(project(':seednode')) {
 configure(project(':statsnode')) {
     mainClassName = 'bisq.statistics.StatisticsMain'
 
+    // Avoid duplicating jsocks.
+    distTar {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    installDist {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
     dependencies {
         implementation project(':common')
         implementation project(':p2p')
@@ -675,6 +724,15 @@ configure(project(':statsnode')) {
 
 configure(project(':daemon')) {
     mainClassName = 'bisq.daemon.app.BisqDaemonMain'
+
+    // Avoid duplicating jsocks.
+    distTar {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    installDist {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 
     dependencies {
         implementation project(':proto')
@@ -726,9 +784,18 @@ configure(project(':daemon')) {
 }
 
 configure(project(':inventory')) {
+    mainClassName = 'bisq.inventory.InventoryMonitorMain'
+
     apply plugin: 'com.github.johnrengelman.shadow'
 
-    mainClassName = 'bisq.inventory.InventoryMonitorMain'
+    // Avoid duplicating jsocks.
+    distTar {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    installDist {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 
     dependencies {
         implementation project(':common')
@@ -777,6 +844,15 @@ configure(project(':apitest')) {
                 exclude 'dao-setup.zip'
             }
         }
+    }
+
+    // Avoid duplicating jsocks.
+    distTar {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    installDist {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
 
     test {
