@@ -800,7 +800,7 @@ configure(project(':apitest')) {
 
                 // Show report link if all tests passed in case you want to see more detail, stdout, skipped, etc.
                 if (result.resultType == TestResult.ResultType.SUCCESS) {
-                    htmlReport = getReports().getHtml()
+                    DirectoryReport htmlReport = getReports().getHtml()
                     String reportUrl = new org.gradle.internal.logging.ConsoleRenderer()
                         .asClickableFileUrl(htmlReport.getEntryPoint())
                     println("REPORT  " + reportUrl)
