@@ -17,6 +17,7 @@
            <trust group="com.google.guava" name="guava" version="18.0"/>
            <trust group="com.google.guava" name="guava-parent" version="18.0"/>
            <trust group="com.google.protobuf" name="protobuf-gradle-plugin" version="0.8.10"/>
+           <trust group="com.fasterxml.jackson" name="com.fasterxml.jackson" version="2.12.1"/>
        </trusted-artifacts>
    </configuration>
    <components>
