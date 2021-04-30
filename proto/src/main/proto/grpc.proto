@@ -23,6 +23,38 @@ import "pb.proto";
 option java_package = "bisq.proto.grpc";
 option java_multiple_files = true;
 
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Notifications (Streaming Examples)
+///////////////////////////////////////////////////////////////////////////////////////////
+
+service Notifications {
+    rpc BidiPollOfferStatus (stream PollOfferStatusRequest) returns (stream PollOfferStatusReply) {
+    }
+    rpc PollOfferStatus (PollOfferStatusRequest) returns (stream PollOfferStatusReply) {
+    }
+}
+
+message PollOfferStatusRequest {
+    string offerId = 1;
+}
+
+message PollOfferStatusReply {
+    string offerId = 1;
+    OfferStatus offerStatus = 2;
+    string offerStatusDescription = 3;
+}
+
+enum OfferStatus {
+    PREPARE_OFFER = 0;
+    PUBLISH_MAKER_FEE_TX = 1;
+    CONFIRM_MAKER_FEE_TX = 2;
+    PREPARE_TRADE = 3;
+    PUBLISH_TAKER_FEE_TX = 4;
+    CONFIRM_TAKER_FEE_TX = 5;
+    DONE = 6;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 // DisputeAgents
 ///////////////////////////////////////////////////////////////////////////////////////////
