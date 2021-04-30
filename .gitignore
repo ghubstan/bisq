@@ -35,3 +35,9 @@ deploy
 .java-version
 .localnet
 /apitest/src/main/resources/dao-setup*
+/commonjs-client/node_modules/*
+/commonjs-client/package-lock.json
+/commonjs-client/grpc_grpc_web_pb.js
+/commonjs-client/grpc_pb.js
+/commonjs-client/pb_pb.js
+/commonjs-client/dist/*
