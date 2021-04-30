@@ -20,6 +20,7 @@ package bisq.cli;
 import bisq.proto.grpc.DisputeAgentsGrpc;
 import bisq.proto.grpc.GetVersionGrpc;
 import bisq.proto.grpc.HelpGrpc;
+import bisq.proto.grpc.NotificationsGrpc;
 import bisq.proto.grpc.OffersGrpc;
 import bisq.proto.grpc.PaymentAccountsGrpc;
 import bisq.proto.grpc.PriceGrpc;
@@ -44,6 +45,8 @@ public final class GrpcStubs {
     public final TradesGrpc.TradesBlockingStub tradesService;
     public final WalletsGrpc.WalletsBlockingStub walletsService;
 
+    public final NotificationsGrpc.NotificationsStub notificationsService;
+
     public GrpcStubs(String apiHost, int apiPort, String apiPassword) {
         CallCredentials credentials = new PasswordCallCredentials(apiPassword);
 
@@ -65,5 +68,7 @@ public final class GrpcStubs {
         this.shutdownService = ShutdownServerGrpc.newBlockingStub(channel).withCallCredentials(credentials);
         this.tradesService = TradesGrpc.newBlockingStub(channel).withCallCredentials(credentials);
         this.walletsService = WalletsGrpc.newBlockingStub(channel).withCallCredentials(credentials);
+
+        this.notificationsService = NotificationsGrpc.newStub(channel).withCallCredentials(credentials);
     }
 }
