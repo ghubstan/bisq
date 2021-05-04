@@ -5,10 +5,15 @@ import bisq.core.api.CoreApi;
 
 import com.google.inject.Inject;
 
+import java.net.URISyntaxException;
+
+import java.io.IOException;
+
 import lombok.extern.slf4j.Slf4j;
 
 
 
+import bisq.daemon.web.client.HttpClientApplication;
 import bisq.daemon.web.handler.GetVersionHandler;
 import io.reactivex.Observable;
 import ratpack.guice.Guice;
@@ -60,6 +65,14 @@ public class WebServer {
         } catch (Exception ex) {
             log.error("", ex);
             throw new RuntimeException(ex);
+        }
+
+        if(false) {
+            try {
+                HttpClientApplication.doStreamingMoviesRequest();
+            } catch (IOException | URISyntaxException | InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
