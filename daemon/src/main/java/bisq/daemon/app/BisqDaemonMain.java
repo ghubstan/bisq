@@ -35,11 +35,13 @@ import lombok.extern.slf4j.Slf4j;
 
 
 import bisq.daemon.grpc.GrpcServer;
+import bisq.daemon.web.server.WebServer;
 
 @Slf4j
 public class BisqDaemonMain extends BisqHeadlessAppMain implements BisqSetup.BisqSetupListener {
 
     private GrpcServer grpcServer;
+    private WebServer webServer;
 
     public static void main(String[] args) {
         new BisqDaemonMain().execute(args);
@@ -104,6 +106,9 @@ public class BisqDaemonMain extends BisqHeadlessAppMain implements BisqSetup.Bis
 
         grpcServer = injector.getInstance(GrpcServer.class);
         grpcServer.start();
+
+        webServer =  injector.getInstance(WebServer.class);
+        webServer.start();
     }
 
     @Override
