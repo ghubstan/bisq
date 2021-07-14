@@ -1,20 +1,17 @@
-# Bisq
+# webapp-in-daemon-poc
 
-[![Build Status](https://travis-ci.org/bisq-network/bisq.svg?branch=master)](https://travis-ci.org/bisq-network/bisq)
+This Bisq branch contains TDOD
 
+## Requirements
 
-## What is Bisq?
+### Build Bisq with the API test harness' DAO setup data.
 
-Bisq is a safe, private and decentralized way to exchange bitcoin for national currencies and other digital assets. Bisq uses peer-to-peer networking and multi-signature escrow to facilitate trading without a third party. Bisq is non-custodial and incorporates a human arbitration system to resolve disputes.
+`$ ./gradlew clean build :apitest:installDaoSetup -x test`
 
-To learn more, see the doc and video at https://bisq.network/intro.
+### Start the API test harness.
 
+`$ ./bisq-apitest --apiPassword=xyz --supportingApps=bitcoind,seednode,alicedaemon  --shutdownAfterTests=false`
 
-## Get started using Bisq
+## gRPC Server < > gRPC CLI Streaming Demos
 
-Follow the step-by-step instructions at https://bisq.network/get-started.
-
-
-## Contribute to Bisq
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) and the [developer docs](docs/README.md).
+### Bidirectional streaming between gRPC server and CLI
