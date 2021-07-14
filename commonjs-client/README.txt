@@ -2,7 +2,7 @@
 Grpc-Web Node-JS Example
 ------------------------
 
-System Requrirements:  npm and envoy (proxy)
+System Requirements:  npm and envoy (proxy)
 
 
 To clone branch, build, and start regtest test harness:

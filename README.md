@@ -1,20 +1,53 @@
-# Bisq
+# grpc-streaming-examples
 
-[![Build Status](https://travis-ci.org/bisq-network/bisq.svg?branch=master)](https://travis-ci.org/bisq-network/bisq)
+This Bisq branch contains simple gRPC streaming demonstrations.
 
+## Requirements
 
-## What is Bisq?
+### Build Bisq with the API test harness' DAO setup data.
 
-Bisq is a safe, private and decentralized way to exchange bitcoin for national currencies and other digital assets. Bisq uses peer-to-peer networking and multi-signature escrow to facilitate trading without a third party. Bisq is non-custodial and incorporates a human arbitration system to resolve disputes.
+`$ ./gradlew clean build :apitest:installDaoSetup -x test`
 
-To learn more, see the doc and video at https://bisq.network/intro.
+### Start the API test harness.
 
+`$ ./bisq-apitest --apiPassword=xyz --supportingApps=bitcoind,seednode,alicedaemon  --shutdownAfterTests=false`
 
-## Get started using Bisq
+## gRPC Server < > gRPC CLI Streaming Demos
 
-Follow the step-by-step instructions at https://bisq.network/get-started.
+### Bidirectional streaming between gRPC server and CLI
 
+The `bisq.daemon.grpc.GrpcNotificationsService` handles two types of requests from the `bisq.cli.NotificationsClient`:
+one for demonstrating unidirectional gRPC streaming, another demonstrating bidirectional gRPC streaming.
 
-## Contribute to Bisq
+#### Unidirectional gRPC Streaming Demo
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and the [developer docs](docs/README.md).
+Create an Intellij application launcher for `NotificationsClient`, and add the API test harness' server password
+as a CLI program argument:  `--password=xyz`
+
+Run `NotificationsClient --password=xyz`
+
+Alice's Bisq Daemon log can be viewed during the demo.
+`$ tail -n 500 -f  apitest/build/resources/main/bisq-BTC_REGTEST_Alice_dao/bisq.log`
+
+#### Bidirectional gRPC Streaming Demo
+
+Clone the Intellij launcher created in the previous section, and add one more CLI argument:  `bidi`
+
+Run `NotificationsClient --password=xyz bidi`
+
+Alice's Bisq Daemon log can be viewed during the demo.
+`$ tail -n 500 -f  apitest/build/resources/main/bisq-BTC_REGTEST_Alice_dao/bisq.log`
+
+### gRPC < > HTML Streaming Demos
+
+This demo shows how node-js (commonjs-client) can make gRPC requests directly to a Bisq Daemon via an Envoy HTTP Proxy,
+from the `grpc-web` framework (https://github.com/grpc/grpc-web.git).
+
+The steps taken to build a node-js client and set up an Envoy proxy are in:
+
+https://github.com/ghubstan/bisq/blob/grpc-streaming-examples/commonjs-client/README.txt
+
+https://github.com/ghubstan/bisq/blob/grpc-streaming-examples/commonjs-client/build-node-client-n-start-proxy.sh
+
+Note: `grpc-web` is not quite mature, and does not yet support bidirectional streaming.  It may be better to
+embed a webapp/microservice process for serving web clients, rather than going this somewhat complicated route.
