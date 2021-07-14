@@ -48,6 +48,8 @@ import bisq.cli.opts.ArgumentList;
  * ./bisq-apitest --apiPassword=xyz --supportingApps=bitcoind,seednode,alicedaemon  --shutdownAfterTests=false
  * To make bidi streaming request, use program args --password=xyz bidi
  * To make uni stream request, use program arg --password=xyz
+ *
+ * See server side logging:  tail -n 500 -f  apitest/build/resources/main/bisq-BTC_REGTEST_Alice_dao/bisq.log
  */
 @Slf4j
 public class NotificationsClient {
