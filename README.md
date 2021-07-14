@@ -49,4 +49,6 @@ https://github.com/ghubstan/bisq/blob/grpc-streaming-examples/commonjs-client/RE
 
 https://github.com/ghubstan/bisq/blob/grpc-streaming-examples/commonjs-client/build-node-client-n-start-proxy.sh
 
-Note: `grpc-web` does not yet support bidirectional streaming.  It may be better to use an embedded webapp/microservice for serving web clients, injecting a `CoreApi` into both the gRPC server and webapp.
+_Note: `grpc-web` does not yet support bidirectional streaming._
+
+It may be better to use an embedded webapp/microservice for serving a variety of web client technologies -- not only node-js.  A `CoreApi` could be injected into both the gRPC server and webapp.
