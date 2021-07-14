@@ -23,13 +23,14 @@ Ratpack can support many types of HTTP clients, including REST clients, e.g.,
 http://localhost:5050/version
 
 The same `CoreApi` instance used by the Bisq Daemon is injected into the `Ratpack` webapp. 
+
 See https://github.com/ghubstan/bisq/blob/webapp-in-daemon-poc/daemon/src/main/java/bisq/daemon/app/BisqDaemonMain.java
 
-_The `Ratpack` webapp is embedded in `bisq.daemon.app.BisqDaemonMain` for demo purposes only;  the gRPC server and web server would be decoupled in a production app._
+_Note:  The `Ratpack` webapp is embedded in `bisq.daemon.app.BisqDaemonMain` for demo purposes only.  The gRPC server and web server would be decoupled in a production app, but both servers could use the same the `CoreApi` instance._
 
 ## Ratpack Demos
 
-The branch also contains some Ratpack webapp demos, including unidirectional and bidirectional streaming examples.
+The branch also contains some `Ratpack` web demos, including unidirectional and bidirectional streaming examples.
 
 `RatpackStreamingObserverApp` demonstrates web streaming with a `java.net.http.HttpClient`
 
@@ -39,6 +40,9 @@ And https://github.com/ghubstan/bisq/blob/webapp-in-daemon-poc/daemon/src/main/j
 
 ## Streaming Between gRPC Server and Web Server
 
-Unidirectional and bidirectional streaming between gRPC server and a gRPC CLI is demonstrated in https://github.com/ghubstan/bisq/blob/grpc-streaming-examples/README.md.  A Ratpack web server could also make streaming requests to a gRPC server, but the investigation was put aside before I implemented gRPC < > webapp streaming example.
+Unidirectional and bidirectional streaming between gRPC server and a gRPC CLI is demonstrated in https://github.com/ghubstan/bisq/blob/grpc-streaming-examples/README.md. 
 
+Web clients could also send streaming requests to a gRPC server via a Ratpack webapp:  CLIENT <-> WEBAPP <-> gRPC Server.  
+The WEBAPP in the middle is not ideal, but it would not restrict clients to `grpc-web` compatible (node-js/HTTP2) clients only.
 
+This investigation was put aside before I implemented a CLIENT <-> WEBAPP <-> gRPC Server streaming example.
