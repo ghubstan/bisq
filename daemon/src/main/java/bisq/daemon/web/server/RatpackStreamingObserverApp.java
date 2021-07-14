@@ -30,7 +30,7 @@ import ratpack.server.RatpackServer;
 import ratpack.sse.ServerSentEvents;
 
 @Slf4j
-public class RatpackStreamingObserveApp {
+public class RatpackStreamingObserverApp {
     /**
      * Try
      *      http://localhost:5050/streaming-movies
