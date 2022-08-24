@@ -352,6 +352,14 @@ public class PersistenceManager<T extends PersistableEnvelope> {
             return null;
         }
 
+        if (storageFile.getName().startsWith("TradeStatistics3Store")) {
+            log.warn("What's in {}?", storageFile.getName());
+            String answer = "message TradeStatistics3Store {\n" +
+                    "    repeated TradeStatistics3 items = 1;\n" +
+                    "}";
+            log.warn("Answer:\n{}?", answer);
+        }
+
         long ts = System.currentTimeMillis();
         try (FileInputStream fileInputStream = new FileInputStream(storageFile)) {
             protobuf.PersistableEnvelope proto = protobuf.PersistableEnvelope.parseDelimitedFrom(fileInputStream);
@@ -442,7 +450,9 @@ public class PersistenceManager<T extends PersistableEnvelope> {
         }
     }
 
-    private void writeToDisk(protobuf.PersistableEnvelope serialized, @Nullable Runnable completeHandler, boolean force) {
+    private void writeToDisk(protobuf.PersistableEnvelope serialized,
+                             @Nullable Runnable completeHandler,
+                             boolean force) {
         if (!allServicesInitialized.get() && !force) {
             log.warn("Application has not completed start up yet so we do not permit writing data to disk.");
             if (completeHandler != null)

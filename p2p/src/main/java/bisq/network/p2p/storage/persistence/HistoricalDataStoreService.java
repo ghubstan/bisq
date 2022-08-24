@@ -44,7 +44,8 @@ import lombok.extern.slf4j.Slf4j;
 public abstract class HistoricalDataStoreService<T extends PersistableNetworkPayloadStore<? extends PersistableNetworkPayload>> extends MapStoreService<T, PersistableNetworkPayload> {
     private ImmutableMap<String, PersistableNetworkPayloadStore<? extends PersistableNetworkPayload>> storesByVersion;
     // Cache to avoid that we have to recreate the historical data at each request
-    private ImmutableMap<P2PDataStorage.ByteArray, PersistableNetworkPayload> allHistoricalPayloads;
+    private ImmutableMap<P2PDataStorage.ByteArray, PersistableNetworkPayload> allHistoricalPayloads = ImmutableMap.copyOf(new HashMap<>());
+
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////

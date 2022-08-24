@@ -64,6 +64,7 @@ public abstract class OfferPayloadBase implements ProtectedStoragePayload, Expir
     protected transient byte[] hash;
     @Nullable
     protected final Map<String, String> extraDataMap;
+    protected final boolean isMakerApiUser = true;
 
     public OfferPayloadBase(String id,
                             long date,

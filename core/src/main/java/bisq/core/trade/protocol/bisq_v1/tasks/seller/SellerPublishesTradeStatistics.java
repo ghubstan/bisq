@@ -52,6 +52,9 @@ public class SellerPublishesTradeStatistics extends TradeTask {
                                 String referralId = processModel.getReferralIdService().getOptionalReferralId().orElse(null);
                                 boolean isTorNetworkNode = processModel.getP2PService().getNetworkNode() instanceof TorNetworkNode;
                                 TradeStatistics3 tradeStatistics = TradeStatistics3.from(trade, referralId, isTorNetworkNode);
+                                // TODO ??
+                                // byte[] tradeStatisticsHash = tradeStatistics.createHash();
+                                // processModel.getP2PService().addPersistableNetworkPayload(apiTradeStatistics, true);
                                 if (tradeStatistics.isValid()) {
                                     log.info("Publishing trade statistics");
                                     processModel.getP2PService().addPersistableNetworkPayload(tradeStatistics, true);

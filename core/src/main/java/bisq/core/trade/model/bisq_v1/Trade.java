@@ -441,6 +441,9 @@ public abstract class Trade extends TradeModel {
     @Getter
     transient final private IntegerProperty assetTxProofResultUpdateProperty = new SimpleIntegerProperty();
 
+    @Getter
+    protected final boolean isTakerApiUser = true;
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Constructor, initialization

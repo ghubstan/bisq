@@ -114,6 +114,11 @@ public abstract class StoreService<T extends PersistableEnvelope> {
         if (!destinationFile.exists()) {
             try {
                 log.info("We copy resource to file: resourceFileName={}, destinationFile={}", resourceFileName, destinationFile);
+
+                if (resourceFileName.startsWith("ApiTradeStatisticsStore")) {
+                    log.warn("Do we have a {} yet?", resourceFileName);
+                }
+
                 FileUtil.resourceToFile(resourceFileName, destinationFile);
                 return true;
             } catch (ResourceNotFoundException e) {

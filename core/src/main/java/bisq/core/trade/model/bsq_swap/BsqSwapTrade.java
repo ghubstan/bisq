@@ -93,6 +93,9 @@ public abstract class BsqSwapTrade extends TradeModel {
     transient private Transaction transaction;
     transient final private ObjectProperty<State> stateProperty = new SimpleObjectProperty<>(state);
 
+    @Getter
+    protected final boolean isTakerApiUser = true;
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Constructor, initialization

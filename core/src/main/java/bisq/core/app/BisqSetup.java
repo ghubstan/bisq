@@ -397,7 +397,8 @@ public class BisqSetup {
 
             log.info("Set log level for org.berndpruenster.netlayer classes to DEBUG to show more details for " +
                     "Tor network connection issues");
-            Log.setCustomLogLevel("org.berndpruenster.netlayer", Level.DEBUG);
+            // Log.setCustomLogLevel("org.berndpruenster.netlayer", Level.DEBUG);
+            Log.setCustomLogLevel("org.berndpruenster.netlayer", Level.INFO);
 
         }, STARTUP_TIMEOUT_MINUTES, TimeUnit.MINUTES);
 
