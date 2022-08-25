@@ -352,10 +352,10 @@ public class PersistenceManager<T extends PersistableEnvelope> {
             return null;
         }
 
-        if (storageFile.getName().startsWith("TradeStatistics3Store")) {
+        if (storageFile.getName().startsWith("ApiTradeStatistics")) {
             log.warn("What's in {}?", storageFile.getName());
-            String answer = "message TradeStatistics3Store {\n" +
-                    "    repeated TradeStatistics3 items = 1;\n" +
+            String answer = "message ApiTradeStatistics {\n" +
+                    "    bytes bytes = 1;\n" +
                     "}";
             log.warn("Answer:\n{}?", answer);
         }
