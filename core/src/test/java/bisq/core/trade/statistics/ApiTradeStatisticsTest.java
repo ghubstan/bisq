@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
+import static bisq.common.util.Utilities.encodeToHex;
 import static bisq.core.trade.statistics.ApiTradeStatistics.RIPEMD160_HASH_LEN;
 import static bisq.core.trade.statistics.ApiTradeStatistics.SERIALIZED_BYTE_ARRAY_LEN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,6 +30,12 @@ public class ApiTradeStatisticsTest {
     @BeforeAll
     public static void genTestStatistics() {
         apiTradeStatisticsList = genApiTradeStatistics(NUM_TEST_STATS);
+        // Make sure there are no duplicate TradeStatistic3 hashes.
+        List<String> hashAsHexList = apiTradeStatisticsList.stream()
+                .map(s -> encodeToHex(s.getHash(), false))
+                .distinct()
+                .collect(Collectors.toList());
+        assertEquals(apiTradeStatisticsList.size(), hashAsHexList.size());
     }
 
     @Order(1)
@@ -68,7 +75,7 @@ public class ApiTradeStatisticsTest {
         protobuf.ApiTradeStatistics apiTradeStatisticsProto = persistableNetworkPayloadProto.getApiTradeStatistics();
         byte[] encodedApiStatisticsBytes = apiTradeStatisticsProto.getBytes().toByteArray();
         assertEquals(SERIALIZED_BYTE_ARRAY_LEN, encodedApiStatisticsBytes.length);
-        
+
         ApiTradeStatistics actualApiTradeStatistics = new ApiTradeStatistics(encodedApiStatisticsBytes);
         assertEquals(expectedApiTradeStatistics, actualApiTradeStatistics);
     }
