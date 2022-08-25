@@ -62,7 +62,8 @@ public final class ApiTradeStatistics implements ProcessOncePersistableNetworkPa
 
     // The proto is a one field byte array that might grow in size
     // to hold more encoded info, and remain backward compatible.
-    private static final int SERIALIZED_BYTE_ARRAY_LEN = 21;
+    @VisibleForTesting
+    static final int SERIALIZED_BYTE_ARRAY_LEN = 21;
 
 
     // 0x00 means API was used to make the trade's offer.

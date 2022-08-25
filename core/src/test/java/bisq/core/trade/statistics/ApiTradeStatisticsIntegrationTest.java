@@ -32,16 +32,21 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
 import static bisq.core.trade.statistics.ApiTradeStatistics.RIPEMD160_HASH_LEN;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-
+@Disabled
 @Slf4j
-public class ApiTradeStatisticsSerializationTest {
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+public class ApiTradeStatisticsIntegrationTest {
 
     private static Config config = new Config();
     private static String postFix = "_TEST"; // "_" + config.baseCurrencyNetwork.name();
@@ -52,7 +57,7 @@ public class ApiTradeStatisticsSerializationTest {
     private static CorruptedStorageFileHandler corruptedStorageFileHandler;
     private static CorePersistenceProtoResolver protoResolver = new CorePersistenceProtoResolver(null, null);
 
-    @BeforeClass
+    @BeforeAll
     public static void setUpStorage() {
         try {
             storageDir = Files.createTempDirectory("test-api-stats-storage-").toFile();
@@ -109,6 +114,7 @@ public class ApiTradeStatisticsSerializationTest {
         checkProtoSize(apiTradeStatistics);
     }
 
+    @Order(1)
     @Test
     public void testDeserialize() {
         ApiTradeStatistics expected = new ApiTradeStatistics(new byte[20], true, false);
@@ -121,6 +127,7 @@ public class ApiTradeStatisticsSerializationTest {
         checkDeserialization(expected);
     }
 
+    @Order(2)
     @Test
     public void testWriteToDisk() {
         var numStats = 1_000_000;
@@ -149,6 +156,8 @@ public class ApiTradeStatisticsSerializationTest {
                 storageDir.getAbsolutePath(),
                 System.currentTimeMillis() - ts);
         p2PDataStorage.shutDown();
+
+        // rw-r--r-- 1 hector sharedstorage 12M Aug 25 04:34 /tmp/test-api-stats-storage-11356228930932338336/ApiTradeStatisticsStore
 
         // TODO Test reading store file
 
