@@ -413,7 +413,7 @@ configure(project(':core')) {
 
     test {
         useJUnitPlatform()
-        exclude '**/**Integration*'
+        // exclude '**/**Integration*' // TODO How to use this and be able to run from IDE?
         systemProperty 'jdk.attach.allowAttachSelf', true
         testLogging {
             events "passed", "skipped", "failed"

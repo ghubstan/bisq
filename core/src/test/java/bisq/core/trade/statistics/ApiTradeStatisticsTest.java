@@ -30,12 +30,7 @@ public class ApiTradeStatisticsTest {
     @BeforeAll
     public static void genTestStatistics() {
         apiTradeStatisticsList = genApiTradeStatistics(NUM_TEST_STATS);
-        // Make sure there are no duplicate TradeStatistic3 hashes.
-        List<String> hashAsHexList = apiTradeStatisticsList.stream()
-                .map(s -> encodeToHex(s.getHash(), false))
-                .distinct()
-                .collect(Collectors.toList());
-        assertEquals(apiTradeStatisticsList.size(), hashAsHexList.size());
+        verifyNoDuplicateTradeStatistics3Hashes(apiTradeStatisticsList);
     }
 
     @Order(1)
@@ -60,6 +55,31 @@ public class ApiTradeStatisticsTest {
         }
     }
 
+    // Visible to integration test cases.
+    static void verifyNoDuplicateTradeStatistics3Hashes(List<ApiTradeStatistics> list) {
+        // Make sure there are no duplicate TradeStatistic3 hashes.
+        List<String> hashAsHexList = list.stream()
+                .map(s -> encodeToHex(s.getHash(), false))
+                .distinct()
+                .collect(Collectors.toList());
+        assertEquals(list.size(), hashAsHexList.size());
+    }
+
+    // Visible to integration test cases.
+    static List<ApiTradeStatistics> genApiTradeStatistics(int numStats) {
+        Random random = new Random();
+        List<ApiTradeStatistics> stats = new ArrayList<>();
+        for (int i = 0; i < numStats; i++) {
+            byte[] nextHash = new byte[RIPEMD160_HASH_LEN];
+            random.nextBytes(nextHash);
+            var isMakerApiUser = i % 2 != 0;
+            // Must be true if !isMakerApiUser.
+            var isTakerApiUser = !isMakerApiUser || i % 3 == 0;
+            stats.add(new ApiTradeStatistics(nextHash, isMakerApiUser, isTakerApiUser));
+        }
+        return stats;
+    }
+
     // Private
 
     private void checkDeserialization(ApiTradeStatistics expectedApiTradeStatistics) {
@@ -78,19 +98,5 @@ public class ApiTradeStatisticsTest {
 
         ApiTradeStatistics actualApiTradeStatistics = new ApiTradeStatistics(encodedApiStatisticsBytes);
         assertEquals(expectedApiTradeStatistics, actualApiTradeStatistics);
-    }
-
-    private static List<ApiTradeStatistics> genApiTradeStatistics(int numStats) {
-        Random random = new Random();
-        List<ApiTradeStatistics> stats = new ArrayList<>();
-        for (int i = 0; i < numStats; i++) {
-            byte[] nextHash = new byte[RIPEMD160_HASH_LEN];
-            random.nextBytes(nextHash);
-            var isMakerApiUser = i % 2 != 0;
-            // Must be true if !isMakerApiUser.
-            var isTakerApiUser = !isMakerApiUser || i % 3 == 0;
-            stats.add(new ApiTradeStatistics(nextHash, isMakerApiUser, isTakerApiUser));
-        }
-        return stats;
     }
 }
