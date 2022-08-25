@@ -17,7 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * Persisted store file sizes:
  * <p>
- * 10,000   ApiTradeStatistics:  245K
+ * 10,000       ApiTradeStatistics:     245K
+ * 1,000,000    ApiTradeStatistics:     2.4M
  *
  */
 @Slf4j
@@ -27,7 +28,7 @@ public class ApiTradeStatisticsIntegrationTest {
     // TODO Generate TradeStatistics3 data instead, generate ApiTradeStatistics from them,
     //  addOneApiTradeStatisticsPayload both, read both, and see if join works.
 
-    private static final int NUM_TEST_STATS = 10_000;
+    private static final int NUM_TEST_STATS = 100_000;
     private static List<ApiTradeStatistics> apiTradeStatisticsList;
     private static StatisticsTestBootstrapper app;  // For brevity, name it 'app'.
 
@@ -43,22 +44,29 @@ public class ApiTradeStatisticsIntegrationTest {
     @Order(1)
     @Test
     public void testWriteToDisk() {
-        log.info("Persisting {} stats to {} ...",
+        log.info("Persisting {} {} to {} ...",
                 apiTradeStatisticsList.size(),
+                ApiTradeStatistics.class.getSimpleName(),
                 app.getStorageDir().getAbsolutePath());
 
         long ts = System.currentTimeMillis();
-        for (int i = 0; i < apiTradeStatisticsList.size(); i++) {
-            ApiTradeStatistics statsObject = apiTradeStatisticsList.get(i);
+        for (int listIdx = 0; listIdx < apiTradeStatisticsList.size(); listIdx++) {
+            ApiTradeStatistics statsObject = apiTradeStatisticsList.get(listIdx);
             addOneApiTradeStatisticsPayload(statsObject);
-        }
-        log.info("Added {} {} payloads to in-memory storage in {} ms.",
-                apiTradeStatisticsList.size(),
-                ApiTradeStatistics.class.getSimpleName(),
-                System.currentTimeMillis() - ts);
 
+            if ((listIdx != 0) && (listIdx % 5_000 == 0)) {
+                persistApiTradeStatisticsPayloads();
+                app.sleep(2_000); // Let disk write finish.
+                log.info("Persisted {} {}...", listIdx - 1, ApiTradeStatistics.class.getSimpleName());
+            }
+        }
         persistApiTradeStatisticsPayloads();
         app.sleep(2_000); // Let disk write finish.
+        log.info("Persisted {} {} payloads to {} in ~ {} ms.",
+                apiTradeStatisticsList.size(),
+                app.getStorageDir().getAbsolutePath(),
+                ApiTradeStatistics.class.getSimpleName(),
+                System.currentTimeMillis() - ts);
 
         app.shutdown();
 
