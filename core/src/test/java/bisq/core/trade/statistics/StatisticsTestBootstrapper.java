@@ -16,6 +16,7 @@ import bisq.network.p2p.storage.persistence.ResourceDataStoreService;
 import bisq.common.ClockWatcher;
 import bisq.common.config.Config;
 import bisq.common.file.CorruptedStorageFileHandler;
+import bisq.common.file.FileUtil;
 import bisq.common.persistence.PersistenceManager;
 
 import java.time.Clock;
@@ -109,9 +110,16 @@ class StatisticsTestBootstrapper {
         sleep(3_000); // Let service threads finish.  (TODO use param?)
     }
 
+    // Create a persistence mgr using the StatisticsTestBootstrapper instance storageDir.
     public PersistenceManager createPersistenceManager() {
+        return createPersistenceManager(storageDir);
+    }
+
+    // Create a persistence mgr using the given storageDir.
+    public PersistenceManager createPersistenceManager(File storageDir) {
         return new PersistenceManager<>(storageDir, corePersistenceProtoResolver, corruptedStorageFileHandler);
     }
+
 
     public void sleep(long ms) {
         try {
@@ -126,6 +134,13 @@ class StatisticsTestBootstrapper {
         // TODO Does anything else need to be explicitly shut down?
         p2PDataStorage.shutDown();
         log.info("Shut down");
+
+        try {
+            log.info("Deleting storage directory {}", storageDir.getAbsolutePath());
+            FileUtil.deleteDirectory(storageDir);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     private File createStorageDir() {

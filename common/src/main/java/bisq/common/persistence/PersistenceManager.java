@@ -358,6 +358,7 @@ public class PersistenceManager<T extends PersistableEnvelope> {
                     "    bytes bytes = 1;\n" +
                     "}";
             log.warn("Answer:\n{}?", answer);
+            log.warn("Code path reached by method call:  persistenceManager.getPersisted(\"ApiTradeStatisticsStore\");");
         }
 
         long ts = System.currentTimeMillis();
