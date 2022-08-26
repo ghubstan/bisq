@@ -34,8 +34,10 @@ import com.google.common.annotations.VisibleForTesting;
 import java.nio.ByteBuffer;
 
 import java.util.Arrays;
+import java.util.List;
 
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -77,6 +79,10 @@ public final class ApiTradeStatistics implements ProcessOncePersistableNetworkPa
     private final boolean isMakerApiUser;
     private final boolean isTakerApiUser;
 
+    // Is set while joining stores on tradeStatistics3.hash <--> this.tradeStatistics3Hash.
+    @Setter
+    private transient bisq.core.trade.statistics.TradeStatistics3 tradeStatistics3;
+
     public ApiTradeStatistics(byte[] tradeStatistics3Hash,
                               boolean isMakerApiUser,
                               boolean isTakerApiUser) {
@@ -108,6 +114,14 @@ public final class ApiTradeStatistics implements ProcessOncePersistableNetworkPa
         return tradeStatistics3Hash.length == RIPEMD160_HASH_LEN;
     }
 
+    boolean joinsOn(byte[] otherHash) {
+        return Arrays.equals(this.tradeStatistics3Hash, otherHash);
+    }
+
+    boolean joinsOn(List<byte[]> otherHashes) {
+        return otherHashes.contains(this.tradeStatistics3Hash);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -134,6 +148,7 @@ public final class ApiTradeStatistics implements ProcessOncePersistableNetworkPa
                 "tradeStatistics3Hash=" + Utilities.bytesAsHexString(tradeStatistics3Hash) +
                 ", isApiMaker=" + isMakerApiUser +
                 ", isApiTaker=" + isTakerApiUser +
+                ", tradeStatistics3=" + tradeStatistics3 +
                 '}';
     }
 

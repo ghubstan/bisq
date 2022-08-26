@@ -25,9 +25,11 @@ import bisq.common.util.Utilities;
 import org.bitcoinj.core.Coin;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Random;
+import java.util.function.BiFunction;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -174,10 +176,64 @@ public class ApiTradeStatisticsIntegrationTest {
 
     @Order(4)
     @Test
-    public void testJoin() {
-
-
+    public void testMerge() {
+        BiFunction<byte[], List<TradeStatistics3>, TradeStatistics3> findTradeStatistics3 = (hash, list) ->
+                list.stream()
+                        .filter(s -> Arrays.equals(s.getHash(), hash))
+                        .findFirst().get();
+        // Set the transient ApiTradeStatistics.tradeStatistics3 fields.
+        apiTradeStatisticsList.stream()
+                .forEach(apiStats -> {
+                    TradeStatistics3 joinedStats = findTradeStatistics3.apply(apiStats.getTradeStatistics3Hash(), tradeStatistics3List);
+                    apiStats.setTradeStatistics3(joinedStats);
+                });
+        for (ApiTradeStatistics merged : apiTradeStatisticsList) {
+            assertNotNull(merged.getTradeStatistics3());
+            assertTrue(Arrays.equals(merged.getTradeStatistics3Hash(), merged.getTradeStatistics3().getHash()));
+        }
     }
+
+    @Order(6)
+    @Test
+    public void testStatisticsCalculations() {
+        long countMakerApiUsers = apiTradeStatisticsList.stream()
+                .filter(s -> s.isMakerApiUser())
+                .count();
+        long countTakerApiUsers = apiTradeStatisticsList.stream()
+                .filter(s -> s.isTakerApiUser())
+                .count();
+        long countMakerAndTakerApiUsers = apiTradeStatisticsList.stream()
+                .filter(s -> s.isMakerApiUser() && s.isTakerApiUser())
+                .count();
+        log.info("countMakerApiUsers = {}, countTakerApiUsers = {} countMakerAndTakerApiUsers = {}",
+                countMakerApiUsers,
+                countTakerApiUsers,
+                countMakerAndTakerApiUsers);
+
+        // API Trade Amount Stats
+
+        var totalTradeAmountByApiMakers = apiTradeStatisticsList.stream()
+                .filter(apiStats -> apiStats.isMakerApiUser())
+                .mapToLong(apiStats -> apiStats.getTradeStatistics3().getAmount())
+                .sum();
+
+        var totalTradeAmountByApiTakers = apiTradeStatisticsList.stream()
+                .filter(apiStats -> apiStats.isTakerApiUser())
+                .mapToLong(apiStats -> apiStats.getTradeStatistics3().getAmount())
+                .sum();
+
+        var totalTradeAmount = apiTradeStatisticsList.stream()
+                .mapToLong(apiStats -> apiStats.getTradeStatistics3().getAmount())
+                .sum();
+
+        log.info("totalTradeAmountByApiMakers = {}, totalTradeAmountByApiTakers = {}, totalTradeAmount = {}",
+                Coin.valueOf(totalTradeAmountByApiMakers).toFriendlyString(),
+                Coin.valueOf(totalTradeAmountByApiTakers).toFriendlyString(),
+                Coin.valueOf(totalTradeAmount).toFriendlyString());
+
+        // TODO ? Look at GroupBy operations: https://dzone.com/articles/java-streams-groupingby-examples
+    }
+
 
     @AfterAll
     public static void shutdown() {
