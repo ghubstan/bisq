@@ -1,4 +1,23 @@
+/*
+ * This file is part of Bisq.
+ *
+ * Bisq is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at
+ * your option) any later version.
+ *
+ * Bisq is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with Bisq. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package bisq.core.trade.statistics;
+
+import bisq.common.util.Utilities;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +32,6 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
-import static bisq.common.util.Utilities.encodeToHex;
 import static bisq.core.trade.statistics.ApiTradeStatistics.RIPEMD160_HASH_LEN;
 import static bisq.core.trade.statistics.ApiTradeStatistics.SERIALIZED_BYTE_ARRAY_LEN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,18 +73,17 @@ public class ApiTradeStatisticsTest {
         }
     }
 
-    // Visible to integration test cases.
-    static void verifyNoDuplicateTradeStatistics3Hashes(List<ApiTradeStatistics> list) {
+    private static void verifyNoDuplicateTradeStatistics3Hashes(List<ApiTradeStatistics> list) {
         // Make sure there are no duplicate TradeStatistic3 hashes.
-        List<String> hashAsHexList = list.stream()
-                .map(s -> encodeToHex(s.getHash(), false))
+        // TODO We would not have to do this if we generated a Set instead of a List.
+        int countDistinctHashes = (int) list.stream()
+                .map(s -> Utilities.encodeToHex(s.getHash()))
                 .distinct()
-                .collect(Collectors.toList());
-        assertEquals(list.size(), hashAsHexList.size());
+                .count();
+        assertEquals(list.size(), countDistinctHashes, "Generated duplicate hashes");
     }
 
-    // Visible to integration test cases.
-    static List<ApiTradeStatistics> genApiTradeStatistics(int numStats) {
+    private static List<ApiTradeStatistics> genApiTradeStatistics(int numStats) {
         Random random = new Random();
         List<ApiTradeStatistics> stats = new ArrayList<>();
         for (int i = 0; i < numStats; i++) {
