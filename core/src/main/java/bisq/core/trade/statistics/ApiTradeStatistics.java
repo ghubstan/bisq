@@ -34,7 +34,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.nio.ByteBuffer;
 
 import java.util.Arrays;
-import java.util.List;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -112,14 +111,6 @@ public final class ApiTradeStatistics implements ProcessOncePersistableNetworkPa
     public boolean verifyHashSize() {
         checkNotNull(tradeStatistics3Hash, "tradeStatistics3Hash must not be null");
         return tradeStatistics3Hash.length == RIPEMD160_HASH_LEN;
-    }
-
-    boolean joinsOn(byte[] otherHash) {
-        return Arrays.equals(this.tradeStatistics3Hash, otherHash);
-    }
-
-    boolean joinsOn(List<byte[]> otherHashes) {
-        return otherHashes.contains(this.tradeStatistics3Hash);
     }
 
     @Override

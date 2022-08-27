@@ -47,10 +47,12 @@ import java.time.Instant;
 import java.io.File;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -145,6 +147,14 @@ public class TradeStatisticsManager {
 
     public ObservableSet<TradeStatistics3> getObservableTradeStatisticsSet() {
         return observableTradeStatisticsSet;
+    }
+
+    @Nullable
+    public TradeStatistics3 findTradeStatistics3WithHash(byte[] hash) {
+        Optional<TradeStatistics3> stats = observableTradeStatisticsSet.stream()
+                .filter(s -> Arrays.equals(s.getHash(), hash))
+                .findFirst();
+        return stats.orElse(null);
     }
 
     private void maybeDumpStatistics() {

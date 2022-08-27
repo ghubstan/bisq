@@ -66,7 +66,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ApiTradeStatisticsIntegrationTest {
 
-    private static final int NUM_TEST_STATS = 100;
+    private static final int NUM_TEST_STATS = 1_000;
     private static List<TradeStatistics3> tradeStatistics3List;
     private static List<ApiTradeStatistics> apiTradeStatisticsList;
     private static StatisticsTestBootstrapper app;  // For brevity, name it 'app'.
@@ -91,7 +91,7 @@ public class ApiTradeStatisticsIntegrationTest {
                 tradeStatistics3List.size(),
                 TradeStatistics3.class.getSimpleName(),
                 ApiTradeStatistics.class.getSimpleName(),
-                app.getStorageDir().getAbsolutePath());
+                app.getDbStorageDir().getAbsolutePath());
 
         long ts = System.currentTimeMillis();
         for (int listIdx = 0; listIdx < tradeStatistics3List.size(); listIdx++) {
@@ -124,14 +124,14 @@ public class ApiTradeStatisticsIntegrationTest {
                 apiTradeStatisticsList.size(),
                 TradeStatistics3.class.getSimpleName(),
                 ApiTradeStatistics.class.getSimpleName(),
-                app.getStorageDir().getAbsolutePath(),
+                app.getDbStorageDir().getAbsolutePath(),
                 System.currentTimeMillis() - ts);
     }
 
     @Order(2)
     @Test
     public void testReadTradeStatistics3StoreFile() {
-        var persistenceManager = app.createPersistenceManager();
+        var persistenceManager = app.createPersistenceManager(app.getDbStorageDir());
         var persistedEnvelope = persistenceManager.getPersisted(app.getTradeStatistics3StorageService().getFileName());
 
         var persistableNetworkPayloadByByteArrayMap = ((TradeStatistics3Store) persistedEnvelope).getMap();
@@ -154,7 +154,7 @@ public class ApiTradeStatisticsIntegrationTest {
     @Order(3)
     @Test
     public void testReadApiTradeStatisticsStoreFile() {
-        var persistenceManager = app.createPersistenceManager();
+        var persistenceManager = app.createPersistenceManager(app.getDbStorageDir());
         var persistedEnvelope = persistenceManager.getPersisted(app.getApiTradeStatisticsStorageService().getFileName());
 
         var persistableNetworkPayloadByByteArrayMap = ((ApiTradeStatisticsStore) persistedEnvelope).getMap();
@@ -181,7 +181,7 @@ public class ApiTradeStatisticsIntegrationTest {
                 list.stream()
                         .filter(s -> Arrays.equals(s.getHash(), hash))
                         .findFirst().get();
-        // Set the transient ApiTradeStatistics.tradeStatistics3 fields.
+        // Set the transient ApiTradeStatistics.tradeStatistics3 fields in apiTradeStatisticsList.
         apiTradeStatisticsList.stream()
                 .forEach(apiStats -> {
                     TradeStatistics3 joinedStats = findTradeStatistics3.apply(apiStats.getTradeStatistics3Hash(), tradeStatistics3List);
@@ -193,7 +193,7 @@ public class ApiTradeStatisticsIntegrationTest {
         }
     }
 
-    @Order(6)
+    @Order(5)
     @Test
     public void testStatisticsCalculations() {
         long countMakerApiUsers = apiTradeStatisticsList.stream()
@@ -222,13 +222,19 @@ public class ApiTradeStatisticsIntegrationTest {
                 .mapToLong(apiStats -> apiStats.getTradeStatistics3().getAmount())
                 .sum();
 
+        var totalTradeAmountByApiMakerAndTakers = apiTradeStatisticsList.stream()
+                .filter(apiStats -> apiStats.isTakerApiUser() && apiStats.isMakerApiUser())
+                .mapToLong(apiStats -> apiStats.getTradeStatistics3().getAmount())
+                .sum();
+
         var totalTradeAmount = apiTradeStatisticsList.stream()
                 .mapToLong(apiStats -> apiStats.getTradeStatistics3().getAmount())
                 .sum();
 
-        log.info("totalTradeAmountByApiMakers = {}, totalTradeAmountByApiTakers = {}, totalTradeAmount = {}",
+        log.info("totalTradeAmountByApiMakers = {}, totalTradeAmountByApiTakers = {}, totalTradeAmountByApiMakerAndTakers = {}, totalTradeAmount = {}",
                 Coin.valueOf(totalTradeAmountByApiMakers).toFriendlyString(),
                 Coin.valueOf(totalTradeAmountByApiTakers).toFriendlyString(),
+                Coin.valueOf(totalTradeAmountByApiMakerAndTakers).toFriendlyString(),
                 Coin.valueOf(totalTradeAmount).toFriendlyString());
 
         // TODO ? Look at GroupBy operations: https://dzone.com/articles/java-streams-groupingby-examples
