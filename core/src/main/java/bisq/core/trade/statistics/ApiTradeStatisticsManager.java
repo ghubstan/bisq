@@ -22,6 +22,7 @@ import bisq.network.p2p.storage.persistence.AppendOnlyDataStoreService;
 
 import bisq.common.config.Config;
 
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import javax.inject.Named;
@@ -53,6 +54,7 @@ public class ApiTradeStatisticsManager {
     @Getter
     private final ObservableSet<ApiTradeStatistics> observableApiTradeStatisticsSet = FXCollections.observableSet();
 
+    @Inject
     public ApiTradeStatisticsManager(P2PService p2PService,
                                      ApiTradeStatisticsStorageService apiTradeStatisticsStorageService,
                                      TradeStatistics3StorageService tradeStatistics3StorageService,

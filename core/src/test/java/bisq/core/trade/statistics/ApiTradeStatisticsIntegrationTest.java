@@ -66,7 +66,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ApiTradeStatisticsIntegrationTest {
 
-    private static final int NUM_TEST_STATS = 100_000;
+    private static final int NUM_TEST_STATS = 100;
     private static List<TradeStatistics3> tradeStatistics3List;
     private static List<ApiTradeStatistics> apiTradeStatisticsList;
     private static StatisticsTestBootstrapper app;  // For brevity, name it 'app'.
