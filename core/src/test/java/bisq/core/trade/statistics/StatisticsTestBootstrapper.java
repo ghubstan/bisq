@@ -84,9 +84,9 @@ class StatisticsTestBootstrapper {
     private final P2PService p2PService;
     private final PriceFeedService priceFeedService;
     private final TradeStatistics3StorageService tradeStatistics3StorageService;
-    private final TradeStatisticsManager tradeStatisticsManager;
+    // private final TradeStatisticsManager tradeStatisticsManager; // Too hard to bootstrap
     private final ApiTradeStatisticsStorageService apiTradeStatisticsStorageService;
-    private final ApiTradeStatisticsManager apiTradeStatisticsManager;
+    // private final ApiTradeStatisticsManager apiTradeStatisticsManager; // Too hard to bootstrap
     private final CorruptedStorageFileHandler corruptedStorageFileHandler;
     private final CoreNetworkProtoResolver coreNetworkProtoResolver;
     private final CorePersistenceProtoResolver corePersistenceProtoResolver;
@@ -127,6 +127,8 @@ class StatisticsTestBootstrapper {
                 new PersistenceManager<>(dbStorageDir, corePersistenceProtoResolver, corruptedStorageFileHandler));
 
         this.appendOnlyDataStoreService = new AppendOnlyDataStoreService();
+        appendOnlyDataStoreService.addService(tradeStatistics3StorageService);
+        appendOnlyDataStoreService.addService(apiTradeStatisticsStorageService);
 
         this.p2PDataStorage = new P2PDataStorage(networkNode,
                 broadcaster,
@@ -186,6 +188,8 @@ class StatisticsTestBootstrapper {
                 keyRing,
                 mailboxMessageService);
 
+        // This is not going to work, statistics managers are too complicated to bootstrap here.
+        /*
         this.tradeStatisticsManager = new TradeStatisticsManager(p2PService,
                 priceFeedService,
                 tradeStatistics3StorageService,
@@ -201,13 +205,20 @@ class StatisticsTestBootstrapper {
                 appendOnlyDataStoreService,
                 dbStorageDir,
                 false);
+
+        // Set static INSTANCE for TradeStatistics3.isValid checks.
+        DaoState daoState = new DaoState();
+        DaoStateService daoStateService = new DaoStateService(daoState, null, new BsqFormatter());
+        TradeLimits tradeLimits = new TradeLimits(daoStateService, new PeriodService(null));
+        log.info(tradeLimits.toString());
+         */
     }
 
-    public void init() {
+    public void initializeServices() {
         appendOnlyDataStoreService.readFromResources(storeFilenamePostFix, () -> {
         });
         PersistenceManager.onAllServicesInitialized();
-        sleep(3_000); // Let service threads finish.  (TODO use param?)
+        sleep(3_000); // Let service threads finish.  (TODO need a delay param?)
     }
 
     public PersistenceManager createPersistenceManager(File storageDir) {
