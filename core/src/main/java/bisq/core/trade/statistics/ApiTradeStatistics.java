@@ -39,6 +39,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.Nullable;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
@@ -80,6 +82,7 @@ public final class ApiTradeStatistics implements ProcessOncePersistableNetworkPa
 
     // Is set while joining stores on tradeStatistics3.hash <--> this.tradeStatistics3Hash.
     @Setter
+    @Nullable
     private transient bisq.core.trade.statistics.TradeStatistics3 tradeStatistics3;
 
     public ApiTradeStatistics(byte[] tradeStatistics3Hash,
