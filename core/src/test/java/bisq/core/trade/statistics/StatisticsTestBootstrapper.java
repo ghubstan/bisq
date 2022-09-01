@@ -52,8 +52,6 @@ import bisq.common.persistence.PersistenceManager;
 
 import java.time.Clock;
 
-import java.net.ServerSocket;
-
 import java.nio.file.Files;
 
 import java.io.File;
@@ -63,6 +61,8 @@ import java.util.ArrayList;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import static bisq.network.utils.Utils.findFreeSystemPort;
 
 /**
  * P2P storage bootstrapper for testing storage file read & write.
@@ -108,7 +108,7 @@ class StatisticsTestBootstrapper {
         this.corruptedStorageFileHandler = new CorruptedStorageFileHandler();
         this.coreNetworkProtoResolver = new CoreNetworkProtoResolver(clock);
         this.corePersistenceProtoResolver = new CorePersistenceProtoResolver(null, coreNetworkProtoResolver);
-        this.networkNode = new LocalhostNetworkNode(getRandomPort(), coreNetworkProtoResolver, null);
+        this.networkNode = new LocalhostNetworkNode(findFreeSystemPort(), coreNetworkProtoResolver, null);
         this.seedNodeRepository = new DefaultSeedNodeRepository(config);
         this.peerManager = new PeerManager(networkNode,
                 seedNodeRepository,
@@ -257,14 +257,6 @@ class StatisticsTestBootstrapper {
             keysDir.mkdir();
 
             return rootDir;
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    private int getRandomPort() {
-        try {
-            return new ServerSocket(0).getLocalPort();
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
