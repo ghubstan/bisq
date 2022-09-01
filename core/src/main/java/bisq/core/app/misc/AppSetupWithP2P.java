@@ -192,6 +192,7 @@ public class AppSetupWithP2P extends AppSetup {
         p2PService.onAllServicesInitialized();
 
         tradeStatisticsManager.onAllServicesInitialized();
+        apiTradeStatisticsManager.onAllServicesInitialized();
 
         accountAgeWitnessService.onAllServicesInitialized();
         signedWitnessService.onAllServicesInitialized();
