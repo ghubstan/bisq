@@ -107,6 +107,9 @@ public class TradeStatisticsManager {
                     return;
                 }
                 observableTradeStatisticsSet.add(tradeStatistics);
+                log.warn("Added stats item # {} to set: {}",
+                        observableTradeStatisticsSet.size(),
+                        tradeStatistics);
                 priceFeedService.setBisqMarketPrice(tradeStatistics.getCurrency(), tradeStatistics.getTradePrice());
                 maybeDumpStatistics();
             }
@@ -149,12 +152,10 @@ public class TradeStatisticsManager {
         return observableTradeStatisticsSet;
     }
 
-    @Nullable
-    public TradeStatistics3 findTradeStatistics3WithHash(byte[] hash) {
-        Optional<TradeStatistics3> stats = observableTradeStatisticsSet.stream()
+    public Optional<TradeStatistics3> findTradeStatistics3WithHash(byte[] hash) {
+        return observableTradeStatisticsSet.stream()
                 .filter(s -> Arrays.equals(s.getHash(), hash))
                 .findFirst();
-        return stats.orElse(null);
     }
 
     private void maybeDumpStatistics() {
