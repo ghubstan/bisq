@@ -21,6 +21,8 @@ import bisq.network.p2p.P2PService;
 import bisq.network.p2p.storage.persistence.AppendOnlyDataStoreService;
 
 import bisq.common.config.Config;
+import bisq.common.file.FileUtil;
+import bisq.common.util.Utilities;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -30,15 +32,25 @@ import javax.inject.Named;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableSet;
 
-import java.io.File;
+import java.nio.file.Paths;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Comparator.comparing;
+import static java.util.Objects.requireNonNull;
 
 @Singleton
 @Slf4j
@@ -76,18 +88,16 @@ public class ApiTradeStatisticsManager {
     public void onAllServicesInitialized() {
         log.info("onAllServicesInitialized");
 
-        // First, set up a ApiTradeStatistics listener for new API trading stats.
+        // First, set up a ApiTradeStatistics listener for new incoming stats.
+        // We do not try to join to the matching TradeStatistics3 payloads until
+        // we export statistics.
         p2PService.getP2PDataStorage().addAppendOnlyDataStoreListener(payload -> {
             if (payload instanceof ApiTradeStatistics) {
                 ApiTradeStatistics apiTradeStatistics = (ApiTradeStatistics) payload;
-                byte[] tradeStatistics3Hash = apiTradeStatistics.getTradeStatistics3Hash();
-                TradeStatistics3 tradeStatistics3 = tradeStatisticsManager.findTradeStatistics3WithHash(tradeStatistics3Hash);
-                if (!tradeStatistics3.isValid()) {
-                    return;
-                }
-                apiTradeStatistics.setTradeStatistics3(tradeStatistics3);
                 observableApiTradeStatisticsSet.add(apiTradeStatistics);
-                maybeDumpStatistics();
+                log.warn("Added api stats item # {} to set: {}",
+                        observableApiTradeStatisticsSet.size(),
+                        apiTradeStatistics);
             }
         });
 
@@ -98,14 +108,13 @@ public class ApiTradeStatisticsManager {
                 .filter(s -> s.getTradeStatistics3().isValid())
                 .collect(Collectors.toSet());
         observableApiTradeStatisticsSet.addAll(set);
-
+        
         maybeDumpStatistics();
     }
 
-    // No JFX in API
+    // Try to keep JFX dependencies out of API.
     public List<ApiTradeStatistics> getApiTradeStatistics() {
-        var array = observableApiTradeStatisticsSet.toArray(new ApiTradeStatistics[0]);
-        return Arrays.asList(array);
+        return Arrays.asList(observableApiTradeStatisticsSet.toArray(new ApiTradeStatistics[0]));
     }
 
     public void maybeRepublishApiTradeStatistics(String whatDoIDoNow) {
@@ -113,27 +122,107 @@ public class ApiTradeStatisticsManager {
         //  tradeStatisticsManager.maybeRepublishTradeStatistics(allTrades, referralId, isTorNetworkNode);
     }
 
-    // TODO The most basic reporting methods to make sure everything works on peers.
-
     public void shutDown() {
-        // no op yet
+        log.info("shutDown");
+        maybeDumpStatistics();
     }
+
 
     private void maybeDumpStatistics() {
         if (!dumpStatistics) {
             return;
         }
+        exportApiTradeStatisticsToCsv();
     }
 
-    public static void main(String[] args) {
-        ApiTradeStatisticsManager mgr = new ApiTradeStatisticsManager(null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                false);
-        var list = mgr.getApiTradeStatistics();
-        log.info("List size: {}", list.size());
+    private void exportApiTradeStatisticsToCsv() {
+        List<ApiTradeStatistics> dateOrderedStats = getDateOrderedStats();
+
+        File tempFile = null;
+        File csvFile = Paths.get(storageDir.getAbsolutePath(), "api_trade_statistics.csv").toFile();
+        String header = "isMakerApiUser,isTakerApiUser,currency,price,amount,paymentMethod,date,mediator,refundAgent";
+        FileWriter fileWriter = null;
+        try {
+            tempFile = File.createTempFile("temp_api_trade_statistics", null, storageDir);
+            tempFile.deleteOnExit();
+
+            fileWriter = new FileWriter(requireNonNull(tempFile), UTF_8);
+            fileWriter.append(header).append("\n");
+            for (ApiTradeStatistics item : dateOrderedStats) {
+                var tradeStatistics3 = item.getTradeStatistics3();
+                item.setTradeStatistics3(tradeStatistics3);
+                fileWriter.append(String.valueOf(item.isMakerApiUser())).append(",");
+                fileWriter.append(String.valueOf(item.isTakerApiUser())).append(",");
+                fileWriter.append(tradeStatistics3.getCurrency()).append(",");
+                fileWriter.append(String.valueOf(tradeStatistics3.getPrice())).append(",");
+                fileWriter.append(String.valueOf(tradeStatistics3.getAmount())).append(",");
+                fileWriter.append(String.valueOf(tradeStatistics3.getPaymentMethodId())).append(",");
+                fileWriter.append(String.valueOf(tradeStatistics3.getDate())).append(",");
+                var mediator = tradeStatistics3.getMediator();
+                if (mediator == null) {
+                    fileWriter.append(",");
+                } else {
+                    fileWriter.append(mediator).append(",");
+                }
+                var refundAgent = tradeStatistics3.getRefundAgent();
+                if (refundAgent == null) {
+                    fileWriter.append("\n");
+                } else {
+                    fileWriter.append(refundAgent).append("\n");
+                }
+            }
+            log.info("Exported {} ApiTradeStatistics to {}.", dateOrderedStats.size(), csvFile.getAbsolutePath());
+        } catch (Exception ex) {
+            throw new RuntimeException("Fatal csv file write error.", ex);
+        } finally {
+            try {
+                requireNonNull(fileWriter).flush();
+                fileWriter.close();
+                FileUtil.renameFile(tempFile, csvFile);
+                if (tempFile.exists()) {
+                    tempFile.delete();
+                }
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+    }
+
+    private List<ApiTradeStatistics> getDateOrderedStats() {
+        List<ApiTradeStatistics> orderedStats = new ArrayList<>();
+
+        // Find the matching TradeStatistics3 if missing (join on hash).
+        getApiTradeStatistics().forEach(apiStats -> {
+            if (apiStats.getTradeStatistics3() == null) {
+                Optional<TradeStatistics3> tradeStatistics = tradeStatisticsManager.findTradeStatistics3WithHash(
+                        apiStats.getTradeStatistics3Hash());
+                tradeStatistics.ifPresentOrElse(s -> {
+                    if (s.isValid()) {
+                        apiStats.setTradeStatistics3(s);
+                        orderedStats.add(apiStats);
+                    } else {
+                        log.error("Invalid tradeStatistics3: {}", s);
+                    }
+                }, () -> {
+                    //  We cannot depend on the matching TradeStatistics3's arrival &
+                    //  storage before the arrival of this ApiTradeStatistics payload.
+                    //  TODO Figure out how to solve missing TradeStatistics3 problem.
+                    log.error("TradeStatisticsManager could not find TradeStatistics3 with hash {}",
+                            Utilities.encodeToHex(apiStats.getTradeStatistics3Hash()));
+                });
+            }
+        });
+
+        // Sort valid, complete API trading stats by trade creation date.
+        orderedStats.sort(comparing(apiTradeStatistics ->
+                apiTradeStatistics.getTradeStatistics3().getDateAsLong()));
+
+        if (observableApiTradeStatisticsSet.size() != orderedStats.size()) {
+            log.warn("Could not find {} matching TradeStatistics3 payloads in the set of"
+                            + " {} valid, complete ApiTradeStatistics payloads.",
+                    observableApiTradeStatisticsSet.size() - orderedStats.size(),
+                    orderedStats.size());
+        }
+        return orderedStats;
     }
 }
