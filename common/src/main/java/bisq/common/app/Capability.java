@@ -44,5 +44,5 @@ public enum Capability {
     NO_ADDRESS_PRE_FIX,                 // At 1.4.0 we removed the prefix filter for mailbox messages. If a peer has that capability we do not sent the prefix.
     TRADE_STATISTICS_3,                 // We used a new reduced trade statistics model from v1.4.0 on
     BSQ_SWAP_OFFER,                     // Supports new message type BsqSwapOffer
-    API_TRADE_STATISTICS,              // We used a new API trade statistics model from v1.9.6 on
+    API_TRADE_STATISTICS                // We use new API trade statistics model from v1.9.6 on
 }
